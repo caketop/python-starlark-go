@@ -1,9 +1,11 @@
 package main
 
-import "C"
-import "go.starlark.net/starlark"
-import "fmt"
-import "math"
+import (
+	"C"
+	"encoding/json"
+	"fmt"
+	"go.starlark.net/starlark"
+)
 
 func NewStarlark() *starlark.Thread {
 	thread := &starlark.Thread{}
@@ -30,11 +32,6 @@ func Call(thread *starlark.Thread, globals starlark.StringDict, fname string, ar
 	return v.String()
 }
 
-//export Hello
-func Hello() {
-	fmt.Printf("Hello! The square root of 4 is: %g\n", math.Sqrt(4))
-}
-
 //export ExecCall
 func ExecCall(data *C.char, function *C.char) *C.char {
 	goData := C.GoString(data)
@@ -48,15 +45,26 @@ func ExecCall(data *C.char, function *C.char) *C.char {
 }
 
 //export ExecCallEval
-func ExecCallEval(data *C.char, function *C.char) *C.char {
-	goData := C.GoString(data)
-	goFunction := C.GoString(function)
+func ExecCallEval(preamble *C.char, statement *C.char) *C.char {
+	// Cast *char to string
+	goPreamble := C.GoString(preamble)
+	goStatement := C.GoString(statement)
+
+	// Initialize starlark and execute preamble
 	thread := NewStarlark()
-	globals, _ := ExecFile(thread, goData)
+	globals, _ := ExecFile(thread, goPreamble)
 
-	result := Eval(thread, globals, goFunction)
+	// Execute statement
+	result, _ := starlark.Eval(thread, "<expr>", goStatement, globals)
 
-	return C.CString(result)
+	// Convert starlark.Value struct into a JSON blob
+	rawResponse := make(map[string]string)
+	rawResponse["value"] = result.String()
+	rawResponse["type"] = result.Type()
+	response, _ := json.Marshal(rawResponse)
+
+	// Convert JSON blob to string and then CString
+	return C.CString(string(response))
 }
 
 //export ExecEval
@@ -70,7 +78,6 @@ func ExecEval(data *C.char) *C.char {
 	}
 	return C.CString(result.String())
 }
-
 
 //export ExecCall
 // func ExecCall(data string, fname string, kwargs map[string]interface{}) string {
@@ -106,6 +113,8 @@ def fibonacci(n=10):
 		res[i] = res[i-2] + res[i-1]
 	return res
 `
+	r := ExecCallEval(C.CString(data), C.CString("fibonacci()"))
+	fmt.Printf("%v\n", C.GoString(r))
 
 	// kwargs := map[string]interface{}{
 	// 	"n": 4,

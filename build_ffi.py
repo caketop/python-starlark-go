@@ -4,7 +4,7 @@ from cffi import FFI
 ffibuilder = FFI()
 
 ffibuilder.set_source(
-    "pystarlark",
+    "starlark",
     """ //passed to the real C compiler
         #include "starlark.h"
     """,
@@ -13,13 +13,7 @@ ffibuilder.set_source(
 
 ffibuilder.cdef(
     """
-    extern void Hello();
-
-    extern char* ExecCall(char* p0, char* p1);
-
     extern char* ExecCallEval(char* p0, char* p1);
-
-    extern char* ExecEval(char* p0);
     """
 )
 
