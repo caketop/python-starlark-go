@@ -14,7 +14,12 @@ ffibuilder.set_source(
 ffibuilder.cdef(
     """
     extern void Hello();
+
     extern char* ExecCall(char* p0, char* p1);
+
+    extern char* ExecCallEval(char* p0, char* p1);
+
+    extern char* ExecEval(char* p0);
     """
 )
 

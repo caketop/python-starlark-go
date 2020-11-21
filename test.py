@@ -9,7 +9,21 @@ def fibonacci(n=10):
    return res
 """
 
+fib2 = b"""
+'test'.capitalize()
+"""
+
 response = lib.ExecCall(fib, b"fibonacci")
 output = ffi.string(response)
+print(output)
+print(json.loads(output))
 
+response = lib.ExecEval(fib2)
+output = ffi.string(response)
+print(output)
+print(json.loads(output))
+
+response = lib.ExecCallEval(fib, b"fibonacci(n=20)")
+output = ffi.string(response)
+print(output)
 print(json.loads(output))

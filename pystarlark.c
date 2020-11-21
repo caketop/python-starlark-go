@@ -573,14 +573,17 @@ static void (*_cffi_call_python_org)(struct _cffi_externpy_s *, char *);
 /************************************************************/
 
 static void *_cffi_types[] = {
-/*  0 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // char *()(char *, char *)
-/*  1 */ _CFFI_OP(_CFFI_OP_POINTER, 6), // char *
-/*  2 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
-/*  3 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/*  4 */ _CFFI_OP(_CFFI_OP_FUNCTION, 7), // void()(void)
-/*  5 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/*  6 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 2), // char
-/*  7 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 0), // void
+/*  0 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // char *()(char *)
+/*  1 */ _CFFI_OP(_CFFI_OP_POINTER, 9), // char *
+/*  2 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/*  3 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // char *()(char *, char *)
+/*  4 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
+/*  5 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
+/*  6 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/*  7 */ _CFFI_OP(_CFFI_OP_FUNCTION, 10), // void()(void)
+/*  8 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/*  9 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 2), // char
+/* 10 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 0), // void
 };
 
 static char * _cffi_d_ExecCall(char * x0, char * x1)
@@ -636,6 +639,97 @@ _cffi_f_ExecCall(PyObject *self, PyObject *args)
 #  define _cffi_f_ExecCall _cffi_d_ExecCall
 #endif
 
+static char * _cffi_d_ExecCallEval(char * x0, char * x1)
+{
+  return ExecCallEval(x0, x1);
+}
+#ifndef PYPY_VERSION
+static PyObject *
+_cffi_f_ExecCallEval(PyObject *self, PyObject *args)
+{
+  char * x0;
+  char * x1;
+  Py_ssize_t datasize;
+  struct _cffi_freeme_s *large_args_free = NULL;
+  char * result;
+  PyObject *pyresult;
+  PyObject *arg0;
+  PyObject *arg1;
+
+  if (!PyArg_UnpackTuple(args, "ExecCallEval", 2, 2, &arg0, &arg1))
+    return NULL;
+
+  datasize = _cffi_prepare_pointer_call_argument(
+      _cffi_type(1), arg0, (char **)&x0);
+  if (datasize != 0) {
+    x0 = ((size_t)datasize) <= 640 ? (char *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(1), arg0, (char **)&x0,
+            datasize, &large_args_free) < 0)
+      return NULL;
+  }
+
+  datasize = _cffi_prepare_pointer_call_argument(
+      _cffi_type(1), arg1, (char **)&x1);
+  if (datasize != 0) {
+    x1 = ((size_t)datasize) <= 640 ? (char *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(1), arg1, (char **)&x1,
+            datasize, &large_args_free) < 0)
+      return NULL;
+  }
+
+  Py_BEGIN_ALLOW_THREADS
+  _cffi_restore_errno();
+  { result = ExecCallEval(x0, x1); }
+  _cffi_save_errno();
+  Py_END_ALLOW_THREADS
+
+  (void)self; /* unused */
+  pyresult = _cffi_from_c_pointer((char *)result, _cffi_type(1));
+  if (large_args_free != NULL) _cffi_free_array_arguments(large_args_free);
+  return pyresult;
+}
+#else
+#  define _cffi_f_ExecCallEval _cffi_d_ExecCallEval
+#endif
+
+static char * _cffi_d_ExecEval(char * x0)
+{
+  return ExecEval(x0);
+}
+#ifndef PYPY_VERSION
+static PyObject *
+_cffi_f_ExecEval(PyObject *self, PyObject *arg0)
+{
+  char * x0;
+  Py_ssize_t datasize;
+  struct _cffi_freeme_s *large_args_free = NULL;
+  char * result;
+  PyObject *pyresult;
+
+  datasize = _cffi_prepare_pointer_call_argument(
+      _cffi_type(1), arg0, (char **)&x0);
+  if (datasize != 0) {
+    x0 = ((size_t)datasize) <= 640 ? (char *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(1), arg0, (char **)&x0,
+            datasize, &large_args_free) < 0)
+      return NULL;
+  }
+
+  Py_BEGIN_ALLOW_THREADS
+  _cffi_restore_errno();
+  { result = ExecEval(x0); }
+  _cffi_save_errno();
+  Py_END_ALLOW_THREADS
+
+  (void)self; /* unused */
+  pyresult = _cffi_from_c_pointer((char *)result, _cffi_type(1));
+  if (large_args_free != NULL) _cffi_free_array_arguments(large_args_free);
+  return pyresult;
+}
+#else
+#  define _cffi_f_ExecEval _cffi_d_ExecEval
+#endif
+
 static void _cffi_d_Hello(void)
 {
   Hello();
@@ -661,8 +755,10 @@ _cffi_f_Hello(PyObject *self, PyObject *noarg)
 #endif
 
 static const struct _cffi_global_s _cffi_globals[] = {
-  { "ExecCall", (void *)_cffi_f_ExecCall, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 0), (void *)_cffi_d_ExecCall },
-  { "Hello", (void *)_cffi_f_Hello, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_N, 4), (void *)_cffi_d_Hello },
+  { "ExecCall", (void *)_cffi_f_ExecCall, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 3), (void *)_cffi_d_ExecCall },
+  { "ExecCallEval", (void *)_cffi_f_ExecCallEval, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 3), (void *)_cffi_d_ExecCallEval },
+  { "ExecEval", (void *)_cffi_f_ExecEval, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 0), (void *)_cffi_d_ExecEval },
+  { "Hello", (void *)_cffi_f_Hello, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_N, 7), (void *)_cffi_d_Hello },
 };
 
 static const struct _cffi_type_context_s _cffi_type_context = {
@@ -672,12 +768,12 @@ static const struct _cffi_type_context_s _cffi_type_context = {
   NULL,  /* no struct_unions */
   NULL,  /* no enums */
   NULL,  /* no typenames */
-  2,  /* num_globals */
+  4,  /* num_globals */
   0,  /* num_struct_unions */
   0,  /* num_enums */
   0,  /* num_typenames */
   NULL,  /* no includes */
-  8,  /* num_types */
+  11,  /* num_types */
   0,  /* flags */
 };
 

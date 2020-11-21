@@ -47,6 +47,30 @@ func ExecCall(data *C.char, function *C.char) *C.char {
 	return C.CString(result)
 }
 
+//export ExecCallEval
+func ExecCallEval(data *C.char, function *C.char) *C.char {
+	goData := C.GoString(data)
+	goFunction := C.GoString(function)
+	thread := NewStarlark()
+	globals, _ := ExecFile(thread, goData)
+
+	result := Eval(thread, globals, goFunction)
+
+	return C.CString(result)
+}
+
+//export ExecEval
+func ExecEval(data *C.char) *C.char {
+	stmt := C.GoString(data)
+	thread := NewStarlark()
+
+	result, err := starlark.Eval(thread, "<expr>", stmt, nil)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	}
+	return C.CString(result.String())
+}
+
 
 //export ExecCall
 // func ExecCall(data string, fname string, kwargs map[string]interface{}) string {
