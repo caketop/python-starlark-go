@@ -1,5 +1,4 @@
-from pystarlark import lib, ffi
-import json
+import pystarlark
 
 fib = b"""
 def fibonacci(n=10):
@@ -13,17 +12,15 @@ fib2 = b"""
 'test'.capitalize()
 """
 
-response = lib.ExecCall(fib, b"fibonacci")
-output = ffi.string(response)
-print(output)
-print(json.loads(output))
+# response = lib.ExecCall(fib, b"fibonacci")
+# output = ffi.string(response)
+# print(output)
+# print(json.loads(output))
 
-response = lib.ExecEval(fib2)
-output = ffi.string(response)
-print(output)
-print(json.loads(output))
+# response = lib.ExecEval(fib2)
+# output = ffi.string(response)
+# print(output)
+# print(json.loads(output))
 
-response = lib.ExecCallEval(fib, b"fibonacci(n=20)")
-output = ffi.string(response)
-print(output)
-print(json.loads(output))
+response = pystarlark.ExecCallEval(fib, "fibonacci(n=20)")
+print(response)

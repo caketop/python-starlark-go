@@ -1,6 +1,6 @@
 from pystarlark.starlark import lib, ffi
-import json
 from ast import literal_eval
+import json
 
 
 def ExecCallEval(preamble, statement, raw=False):

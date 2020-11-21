@@ -1,0 +1,2 @@
+cffi==1.14.3
+setuptools-golang==2.3.0

@@ -1,1 +1,5 @@
 __pycache__/
+build/
+dist/
+pystarlark.egg-info/
+.DS_Store

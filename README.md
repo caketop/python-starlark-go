@@ -1,3 +1,3 @@
-go build -buildmode=c-shared -o starlark.so .
+# pystarlark
 
-python build_ffi.py
+Experimental Python bindings for [starlark-go](https://github.com/google/starlark-go)
