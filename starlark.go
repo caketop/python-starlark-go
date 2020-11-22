@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"go.starlark.net/starlark"
 	"math/rand"
-    "time"
+	"time"
 )
 
 var THREADS = map[uint64]*starlark.Thread{}
