@@ -5,3 +5,4 @@ pystarlark.egg-info/
 .DS_Store
 starlark.o
 starlark.so
+.eggs
