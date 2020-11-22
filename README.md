@@ -27,7 +27,7 @@ s.eval("fibonacci(5)")  # [0, 1, 1, 2, 3]
 
 ## How does this work?
 
-pystarlark is a binding to [starlark-go](https://github.com/google/starlark-go) through a shared library build through cgo.
+pystarlark is a binding to [starlark-go](https://github.com/google/starlark-go) through a shared library built through cgo.
 
 ## What is Starlark?
 
