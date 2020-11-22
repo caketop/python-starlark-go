@@ -1,6 +1,6 @@
 # pystarlark
 
-![https://pypi.org/project/pystarlark/](https://img.shields.io/pypi/v/pystarlark)
+[![PyPI](https://img.shields.io/pypi/v/pystarlark)](https://pypi.org/project/pystarlark/)
 
 Experimental Python bindings for [starlark-go](https://github.com/google/starlark-go)
 
