@@ -1,16 +1,27 @@
-from pystarlark.starlark import lib, ffi
-from ast import literal_eval
 import json
+from ast import literal_eval
+
+from pystarlark.starlark import ffi, lib
 
 
-def ExecCallEval(preamble, statement, raw=False):
-    if isinstance(preamble, str):
-        preamble = preamble.encode()
-    if isinstance(statement, str):
-        statement = statement.encode()
+class Starlark:
+    def __init__(self):
+        self._id = lib.NewThread()
 
-    response = lib.ExecCallEval(preamble, statement)
-    value = json.loads(ffi.string(response))
-    if raw:
-        return value
-    return literal_eval(value["value"])
+    def read(self, code):
+        if isinstance(code, str):
+            code = code.encode()
+        lib.ExecFile(self._id, code)
+
+    def eval(self, statement, _raw=False):
+        if isinstance(statement, str):
+            statement = statement.encode()
+
+        response = ffi.string(lib.Eval(self._id, statement))
+        if _raw:
+            return response
+        value = json.loads(response)["value"]
+        return literal_eval(value)
+
+    def __del__(self):
+        lib.DestroyThread(self._id)

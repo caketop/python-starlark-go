@@ -5,57 +5,48 @@ import (
 	"encoding/json"
 	"fmt"
 	"go.starlark.net/starlark"
+	"math/rand"
+    "time"
 )
 
-func NewStarlark() *starlark.Thread {
+var THREADS = map[uint64]*starlark.Thread{}
+var GLOBALS = map[uint64]starlark.StringDict{}
+var RAND = false
+
+//export NewThread
+func NewThread() C.ulong {
+	if RAND == false {
+		rand.Seed(time.Now().UnixNano())
+		RAND = true
+	}
+	threadId := rand.Uint64()
 	thread := &starlark.Thread{}
-	return thread
+	THREADS[threadId] = thread
+	GLOBALS[threadId] = starlark.StringDict{}
+	return C.ulong(threadId)
 }
 
-func ExecFile(thread *starlark.Thread, data string) (starlark.StringDict, error) {
-	return starlark.ExecFile(thread, "main.star", data, starlark.StringDict{})
+//export DestroyThread
+func DestroyThread(threadId C.ulong) {
+	goThreadId := uint64(threadId)
+	delete(THREADS, goThreadId)
+	delete(GLOBALS, goThreadId)
 }
 
-func Call(thread *starlark.Thread, globals starlark.StringDict, fname string, args starlark.Tuple, kwargs []starlark.Tuple) string {
-	// Run star from a string
-
-	f := globals[fname]
-
-	// // Call Starlark function from Go.
-	// new_kwargs := starlark.StringDict{
-	// 	"n": starlark.MakeInt(25),
-	// }
-
-	// make(map[string]starlark.Value)}
-
-	v, _ := starlark.Call(thread, f, args, kwargs)
-	return v.String()
-}
-
-//export ExecCall
-func ExecCall(data *C.char, function *C.char) *C.char {
-	goData := C.GoString(data)
-	goFunction := C.GoString(function)
-	thread := NewStarlark()
-	globals, _ := ExecFile(thread, goData)
-
-	result := Call(thread, globals, goFunction, nil, nil)
-
-	return C.CString(result)
-}
-
-//export ExecCallEval
-func ExecCallEval(preamble *C.char, statement *C.char) *C.char {
+//export Eval
+func Eval(threadId C.ulong, stmt *C.char) *C.char {
 	// Cast *char to string
-	goPreamble := C.GoString(preamble)
-	goStatement := C.GoString(statement)
+	goStmt := C.GoString(stmt)
+	goThreadId := uint64(threadId)
 
-	// Initialize starlark and execute preamble
-	thread := NewStarlark()
-	globals, _ := ExecFile(thread, goPreamble)
+	thread := THREADS[goThreadId]
+	globals := GLOBALS[goThreadId]
 
-	// Execute statement
-	result, _ := starlark.Eval(thread, "<expr>", goStatement, globals)
+	result, err := starlark.Eval(thread, "<expr>", goStmt, globals)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+		panic(err)
+	}
 
 	// Convert starlark.Value struct into a JSON blob
 	rawResponse := make(map[string]string)
@@ -67,42 +58,20 @@ func ExecCallEval(preamble *C.char, statement *C.char) *C.char {
 	return C.CString(string(response))
 }
 
-//export ExecEval
-func ExecEval(data *C.char) *C.char {
-	stmt := C.GoString(data)
-	thread := NewStarlark()
+//export ExecFile
+func ExecFile(threadId C.ulong, data *C.char) {
+	// Cast *char to string
+	goData := C.GoString(data)
+	goThreadId := uint64(threadId)
 
-	result, err := starlark.Eval(thread, "<expr>", stmt, nil)
+	thread := THREADS[goThreadId]
+	globals, err := starlark.ExecFile(thread, "main.star", goData, starlark.StringDict{})
 	if err != nil {
 		fmt.Printf("%v\n", err)
+		panic(err)
 	}
-	return C.CString(result.String())
-}
-
-//export ExecCall
-// func ExecCall(data string, fname string, kwargs map[string]interface{}) string {
-// 	thread := NewStarlark()
-// 	globals, _ := ExecFile(thread, data)
-// 	// fmt.Printf("%v\n", kwargs)
-
-// 	// new_kwargs := []starlark.Tuple{
-// 	// 	starlark.MakeInt(6),
-// 	// }
-
-// 	// args := starlark.Tuple{starlark.MakeInt(6)}
-// 	// new_kwargs := []starlark.Tuple{
-// 	// 	starlark.Tuple{starlark.String("n"), starlark.MakeInt(20)},
-// 	// }
-
-// 	return Call(thread, globals, fname, nil, nil)
-// }
-
-func Eval(thread *starlark.Thread, globals starlark.StringDict, stmt string) string {
-	v, err := starlark.Eval(thread, "<expr>", stmt, globals)
-	if err != nil {
-		fmt.Printf("%v\n", err)
-	}
-	return v.String()
+	GLOBALS[goThreadId] = globals
+	return
 }
 
 func main() {
@@ -113,24 +82,9 @@ def fibonacci(n=10):
 		res[i] = res[i-2] + res[i-1]
 	return res
 `
-	r := ExecCallEval(C.CString(data), C.CString("fibonacci()"))
+	threadId := NewThread()
+	ExecFile(threadId, C.CString(data))
+	r := Eval(threadId, C.CString("fibonacci(25)"))
 	fmt.Printf("%v\n", C.GoString(r))
-
-	// kwargs := map[string]interface{}{
-	// 	"n": 4,
-	// }
-	// r := ExecCall(data, "fibonacci", nil)
-	// fmt.Printf("%v\n", r)
-
-	// thread := NewStarlark()
-	// fmt.Println(reflect.TypeOf(thread))
-	// globals, _ := ExecFile(thread, data)
-	// fmt.Printf("%v\n", globals)
-	// Call(thread, globals, "fibonacci", starlark.Tuple{starlark.MakeInt(10)}, nil)
-
-	// Eval(thread, globals, "None")
-	// _, prog, _ := Build(data)
-	// globals, _ := prog.Init(thread, starlark.StringDict{})
-	// fmt.Printf("%v\n", globals)
-	// prog.Call
+	DestroyThread(threadId)
 }
