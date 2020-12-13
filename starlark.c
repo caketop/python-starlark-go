@@ -575,19 +575,22 @@ static void (*_cffi_call_python_org)(struct _cffi_externpy_s *, char *);
 static void *_cffi_types[] = {
 /*  0 */ _CFFI_OP(_CFFI_OP_FUNCTION, 2), // char *()(unsigned long, char *)
 /*  1 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 10), // unsigned long
-/*  2 */ _CFFI_OP(_CFFI_OP_POINTER, 13), // char *
+/*  2 */ _CFFI_OP(_CFFI_OP_POINTER, 16), // char *
 /*  3 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
 /*  4 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // unsigned long()(void)
 /*  5 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/*  6 */ _CFFI_OP(_CFFI_OP_FUNCTION, 14), // void()(unsigned long)
-/*  7 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 10),
+/*  6 */ _CFFI_OP(_CFFI_OP_FUNCTION, 17), // void()(char *)
+/*  7 */ _CFFI_OP(_CFFI_OP_NOOP, 2),
 /*  8 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/*  9 */ _CFFI_OP(_CFFI_OP_FUNCTION, 14), // void()(unsigned long, char *)
+/*  9 */ _CFFI_OP(_CFFI_OP_FUNCTION, 17), // void()(unsigned long)
 /* 10 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 10),
-/* 11 */ _CFFI_OP(_CFFI_OP_NOOP, 2),
-/* 12 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 13 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 2), // char
-/* 14 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 0), // void
+/* 11 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 12 */ _CFFI_OP(_CFFI_OP_FUNCTION, 17), // void()(unsigned long, char *)
+/* 13 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 10),
+/* 14 */ _CFFI_OP(_CFFI_OP_NOOP, 2),
+/* 15 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 16 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 2), // char
+/* 17 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 0), // void
 };
 
 static void _cffi_d_DestroyThread(unsigned long x0)
@@ -712,6 +715,42 @@ _cffi_f_ExecFile(PyObject *self, PyObject *args)
 #  define _cffi_f_ExecFile _cffi_d_ExecFile
 #endif
 
+static void _cffi_d_FreeCString(char * x0)
+{
+  FreeCString(x0);
+}
+#ifndef PYPY_VERSION
+static PyObject *
+_cffi_f_FreeCString(PyObject *self, PyObject *arg0)
+{
+  char * x0;
+  Py_ssize_t datasize;
+  struct _cffi_freeme_s *large_args_free = NULL;
+
+  datasize = _cffi_prepare_pointer_call_argument(
+      _cffi_type(2), arg0, (char **)&x0);
+  if (datasize != 0) {
+    x0 = ((size_t)datasize) <= 640 ? (char *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(2), arg0, (char **)&x0,
+            datasize, &large_args_free) < 0)
+      return NULL;
+  }
+
+  Py_BEGIN_ALLOW_THREADS
+  _cffi_restore_errno();
+  { FreeCString(x0); }
+  _cffi_save_errno();
+  Py_END_ALLOW_THREADS
+
+  (void)self; /* unused */
+  if (large_args_free != NULL) _cffi_free_array_arguments(large_args_free);
+  Py_INCREF(Py_None);
+  return Py_None;
+}
+#else
+#  define _cffi_f_FreeCString _cffi_d_FreeCString
+#endif
+
 static unsigned long _cffi_d_NewThread(void)
 {
   return NewThread();
@@ -739,9 +778,10 @@ _cffi_f_NewThread(PyObject *self, PyObject *noarg)
 #endif
 
 static const struct _cffi_global_s _cffi_globals[] = {
-  { "DestroyThread", (void *)_cffi_f_DestroyThread, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 6), (void *)_cffi_d_DestroyThread },
+  { "DestroyThread", (void *)_cffi_f_DestroyThread, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 9), (void *)_cffi_d_DestroyThread },
   { "Eval", (void *)_cffi_f_Eval, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 0), (void *)_cffi_d_Eval },
-  { "ExecFile", (void *)_cffi_f_ExecFile, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 9), (void *)_cffi_d_ExecFile },
+  { "ExecFile", (void *)_cffi_f_ExecFile, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 12), (void *)_cffi_d_ExecFile },
+  { "FreeCString", (void *)_cffi_f_FreeCString, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 6), (void *)_cffi_d_FreeCString },
   { "NewThread", (void *)_cffi_f_NewThread, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_N, 4), (void *)_cffi_d_NewThread },
 };
 
@@ -752,12 +792,12 @@ static const struct _cffi_type_context_s _cffi_type_context = {
   NULL,  /* no struct_unions */
   NULL,  /* no enums */
   NULL,  /* no typenames */
-  4,  /* num_globals */
+  5,  /* num_globals */
   0,  /* num_struct_unions */
   0,  /* num_enums */
   0,  /* num_typenames */
   NULL,  /* no includes */
-  15,  /* num_types */
+  18,  /* num_types */
   0,  /* flags */
 };
 

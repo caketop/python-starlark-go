@@ -8,7 +8,7 @@ class Starlark:
     def __init__(self):
         self._id = lib.NewThread()
 
-    def read(self, code):
+    def exec(self, code):
         if isinstance(code, str):
             code = code.encode()
         lib.ExecFile(self._id, code)
@@ -17,7 +17,9 @@ class Starlark:
         if isinstance(statement, str):
             statement = statement.encode()
 
-        response = ffi.string(lib.Eval(self._id, statement))
+        output = lib.Eval(self._id, statement)
+        response = ffi.string(output)
+        lib.FreeCString(output)
         if _raw:
             return response
         value = json.loads(response)["value"]

@@ -13,13 +13,15 @@ ffibuilder.set_source(
 
 ffibuilder.cdef(
     """
-    extern long unsigned int NewThread();
+extern long unsigned int NewThread();
 
-    extern void DestroyThread(long unsigned int p0);
+extern void DestroyThread(long unsigned int p0);
 
-    extern char* Eval(long unsigned int p0, char* p1);
+extern char* Eval(long unsigned int p0, char* p1);
 
-    extern void ExecFile(long unsigned int p0, char* p1);
+extern void ExecFile(long unsigned int p0, char* p1);
+
+extern void FreeCString(char* p0);
     """
 )
 

@@ -6,3 +6,4 @@ pystarlark.egg-info/
 starlark.o
 starlark.so
 .eggs
+pystarlark/*.so

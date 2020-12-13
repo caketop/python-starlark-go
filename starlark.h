@@ -19,6 +19,11 @@ typedef struct { const char *p; ptrdiff_t n; } _GoString_;
 /* Start of preamble from import "C" comments.  */
 
 
+#line 3 "starlark.go"
+
+ #include <stdlib.h>
+
+#line 1 "cgo-generated-wrapper"
 
 
 /* End of preamble from import "C" comments.  */
@@ -76,6 +81,8 @@ extern void DestroyThread(long unsigned int p0);
 extern char* Eval(long unsigned int p0, char* p1);
 
 extern void ExecFile(long unsigned int p0, char* p1);
+
+extern void FreeCString(char* p0);
 
 #ifdef __cplusplus
 }

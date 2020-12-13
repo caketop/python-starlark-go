@@ -1,24 +1,23 @@
 package main
 
+/*
+ #include <stdlib.h>
+*/
+import "C"
 import (
-	"C"
 	"encoding/json"
 	"fmt"
-	"go.starlark.net/starlark"
 	"math/rand"
-	"time"
+	"unsafe"
+
+	"go.starlark.net/starlark"
 )
 
 var THREADS = map[uint64]*starlark.Thread{}
 var GLOBALS = map[uint64]starlark.StringDict{}
-var RAND = false
 
 //export NewThread
 func NewThread() C.ulong {
-	if RAND == false {
-		rand.Seed(time.Now().UnixNano())
-		RAND = true
-	}
 	threadId := rand.Uint64()
 	thread := &starlark.Thread{}
 	THREADS[threadId] = thread
@@ -72,6 +71,11 @@ func ExecFile(threadId C.ulong, data *C.char) {
 	}
 	GLOBALS[goThreadId] = globals
 	return
+}
+
+//export FreeCString
+func FreeCString(s *C.char) {
+	C.free(unsafe.Pointer(s))
 }
 
 func main() {
