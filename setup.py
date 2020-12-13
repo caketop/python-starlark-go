@@ -1,3 +1,4 @@
+import re
 import setuptools
 
 with open("pystarlark/__init__.py", "r", encoding="utf8") as f:
