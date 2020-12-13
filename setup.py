@@ -1,11 +1,14 @@
 import setuptools
 
+with open("pystarlark/__init__.py", "r", encoding="utf8") as f:
+    version = re.search(r'__version__ = "(.*?)"', f.read()).group(1)
+
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
     name="pystarlark",
-    version="0.0.1",
+    version=version,
     author="Kevin Chung",
     author_email="kchung@nyu.edu",
     description="Python bindings for Starlark in Go",
@@ -23,4 +26,5 @@ setuptools.setup(
     build_golang={"root": "github.com/ColdHeat/pystarlark"},
     ext_modules=[setuptools.Extension("pystarlark/starlark", ["starlark.go"])],
     setup_requires=["setuptools-golang==2.3.0", "cffi==1.14.3"],
+    install_requires=["cffi==1.14.3"],
 )

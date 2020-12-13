@@ -3,6 +3,8 @@ from ast import literal_eval
 
 from pystarlark.starlark import ffi, lib
 
+__version__ = "0.0.1"
+
 
 class Starlark:
     def __init__(self):

@@ -1,6 +1,8 @@
-name: Build
+name: Build wheels
 
-on: [push, pull_request]
+on:
+ release:
+   types: [created, edited]
 
 jobs:
   build_wheels:
@@ -8,7 +10,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-18.04, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
       - uses: actions/checkout@v2
@@ -20,20 +22,23 @@ jobs:
 
       - name: Install cibuildwheel
         run: |
-          python3 -m pip install cibuildwheel==1.6.4
+          python -m pip install cibuildwheel==1.6.4
 
       - name: Install Visual C++ for Python 2.7
         if: runner.os == 'Windows'
         run: |
           choco install vcpython27 -f -y
+          choco install golang -f -y
+          choco install mingw -f -y
 
-      - name: Build Linux wheels
+      - name: Build Linux wheels and sdist
         if: runner.os == 'Linux'
         env:
           CIBW_BEFORE_ALL: 'pwd && ls && chmod +x ./scripts/setup-linux.sh && ./scripts/setup-linux.sh'
           CIBW_BUILD: cp3?-*
           CIBW_SKIP: "cp35-* *-win32 *-manylinux_i686 *-manylinux_aarch64 *-manylinux_ppc64le *-manylinux_s390x"
         run: |
+          python setup.py sdist
           python3 -m cibuildwheel --output-dir wheelhouse
 
       - name: Build macOS wheels
@@ -45,6 +50,34 @@ jobs:
         run: |
           python3 -m cibuildwheel --output-dir wheelhouse
 
+      - name: Build Windows wheels
+        if: runner.os == 'Windows'
+        env:
+          CIBW_BUILD: cp3?-*
+          CIBW_SKIP: "cp35-* *-win32 *-manylinux_i686 *-manylinux_aarch64 *-manylinux_ppc64le *-manylinux_s390x"
+        run: |
+          go version
+          python -m cibuildwheel --output-dir wheelhouse
+
+      - name: Publish sdist
+        if: runner.os == 'Linux'
+        env:
+          TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+        run: |
+          twine check ./dist/*.tar.gz
+          twine upload --skip-existing ./dist/*
+
       - uses: actions/upload-artifact@v2
         with:
-          path: ./wheelhouse/*.whl
+          path: |
+           ./wheelhouse/*.whl
+           ./dist/*.tar.gz
+
+      - name: Publish wheels
+        env:
+          TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+        run: |
+          twine check ./wheelhouse/*.whl
+          twine upload --skip-existing ./wheelhouse/*
