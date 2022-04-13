@@ -1,0 +1,22 @@
+{
+  "name": "manylinux + go",
+  "build": {
+    "dockerfile": "Dockerfile",
+  },
+  // "workspaceFolder": "/usr/src/pystarlark",
+  "settings": {
+		"terminal.integrated.profiles.linux": {
+			"bash": {
+				"path": "/bin/bash"
+			}
+		},
+    "python.defaultInterpreterPath": "/opt/python/cp36-cp36/bin/python3",
+  },
+	"extensions": [
+    "bierner.github-markdown-preview",
+    "eamodio.gitlens",
+		"ms-python.python",
+		"ms-python.vscode-pylance",
+    "oderwat.indent-rainbow",
+	],
+}
