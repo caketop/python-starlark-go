@@ -76,7 +76,7 @@ static PyMethodDef Starlark_methods[] = {
 
 static PyTypeObject StarlarkType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "pystarlark.starlark_go.Starlark",
+    .tp_name = "pystarlark._lib.starlark_go.Starlark",
     .tp_doc = "Starlark interpreter",
     .tp_basicsize = sizeof(StarlarkObject),
     .tp_itemsize = 0,
@@ -88,7 +88,7 @@ static PyTypeObject StarlarkType = {
 
 static PyModuleDef starlark_go = {
     PyModuleDef_HEAD_INIT,
-    .m_name = "pystarlark.starlark_go",
+    .m_name = "pystarlark._lib.starlark_go",
     .m_doc = "Interface to starlark-go",
     .m_size = -1,
 };
