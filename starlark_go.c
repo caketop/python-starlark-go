@@ -17,8 +17,8 @@ typedef struct {
 } StarlarkObject;
 
 
-void PyErr_Format_S(PyObject *exception, const char *message) {
-    PyErr_Format(exception, message);
+void Raise_EvalError(const char *message) {
+    PyErr_Format(EvalError, message);
 }
 
 static PyObject* Starlark_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
