@@ -1,12 +1,13 @@
 import json
+
 from ast import literal_eval
 from typing import Any
 
 from pystarlark._lib.starlark_go import EvalError
 from pystarlark._lib.starlark_go import Starlark as LibStarlark
-from pystarlark._lib.starlark_go import StarlarkError
+from pystarlark._lib.starlark_go import StarlarkError, SyntaxError, UnexpectedError
 
-__all__ = ["Starlark", "StarlarkError", "EvalError"]
+__all__ = ["Starlark", "StarlarkError", "EvalError", "SyntaxError", "UnexpectedError"]
 __version__ = "0.0.2"
 
 
