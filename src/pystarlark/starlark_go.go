@@ -78,6 +78,9 @@ func FreeCString(s *C.char) {
 	C.free(unsafe.Pointer(s))
 }
 
+func main() {}
+
+/*
 func main() {
 	const data = `
 def fibonacci(n=10):
@@ -92,3 +95,4 @@ def fibonacci(n=10):
 	fmt.Printf("%v\n", C.GoString(r))
 	DestroyThread(threadId)
 }
+*/
