@@ -58,7 +58,7 @@ func Eval(threadId C.ulong, stmt *C.char) *C.char {
 }
 
 //export ExecFile
-func ExecFile(threadId C.ulong, data *C.char) {
+func ExecFile(threadId C.ulong, data *C.char) C.int {
 	// Cast *char to string
 	goData := C.GoString(data)
 	goThreadId := uint64(threadId)
@@ -70,7 +70,7 @@ func ExecFile(threadId C.ulong, data *C.char) {
 		panic(err)
 	}
 	GLOBALS[goThreadId] = globals
-	return
+	return C.int(1)
 }
 
 //export FreeCString
