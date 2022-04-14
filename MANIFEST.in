@@ -1,4 +1,4 @@
 include go.mod
 include go.sum
-include src/pystarlark/starlark_go.c
-include src/pystarlark/starlark_go.go
+include src/pystarlark/_lib/starlark_go.c
+include src/pystarlark/_lib/starlark_go.go
