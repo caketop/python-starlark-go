@@ -45,6 +45,75 @@ void Raise_UnexpectedError(const char *error, const char *err_type) {
 	PyErr_SetObject(UnexpectedError, exc_args);
 }
 
+static PyObject *get_arg(PyObject *self, int index) {
+    if (!PyObject_HasAttrString(self, "args"))
+        return NULL;
+
+	PyObject *args = PyObject_GetAttrString(self, "args");
+    PyObject *arg = NULL;
+
+    if (PyTuple_Size(args) > index)
+        arg = PyTuple_GetItem(args, index);
+
+    Py_XDECREF(args);
+    return arg;
+}
+
+static PyObject *get_arg_str(PyObject *self, int index) {
+    PyObject *arg = get_arg(self, index);
+    if (arg != NULL)
+        arg = PyObject_Str(arg);
+
+    return arg;
+}
+
+int add_getset(PyTypeObject *type, PyGetSetDef getset[]) {
+    int retval = 1;
+    PyObject *descr = PyDescr_NewGetSet(type, getset);
+
+    if (PyDict_SetItem(type->tp_dict, PyDescr_NAME(descr), descr) < 0) {
+        PyErr_SetString(PyExc_RuntimeError, "failed to add getset");
+        retval = 0;
+    }
+
+	Py_DECREF(descr);
+    return retval;
+}
+
+static PyObject *StarlarkError_message(PyObject *self) {
+    PyObject *message = get_arg_str(self, 0);
+    if (message == NULL)
+        return PyUnicode_FromString("Unknown error");
+
+    return message;
+}
+
+static PyObject *StarlarkError_second_string(PyObject *self) {
+    PyObject *message = get_arg_str(self, 1);
+    if (message == NULL)
+        return PyUnicode_FromString("Unknown");
+
+    return message;
+}
+
+static PyObject *StarlarkError_get_message(PyObject *self, void *closure) {
+    return StarlarkError_message(self);
+}
+
+static PyObject *StarlarkError_get_second_string(PyObject *self, void *closure) {
+    return StarlarkError_second_string(self);
+}
+
+static PyGetSetDef StarlarkError_getset[] = {
+    {"message", StarlarkError_get_message, NULL, NULL, NULL},
+    {NULL}
+};
+
+static PyGetSetDef SyntaxError_getset[] = {
+    {"filename", StarlarkError_get_second_string, NULL, NULL, NULL},
+    {NULL}
+};
+
 static PyObject* Starlark_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
     StarlarkObject *self;
     self = (StarlarkObject *) type->tp_alloc(type, 0);
@@ -160,6 +229,10 @@ PyMODINIT_FUNC PyInit_starlark_go(void) {
     if ((!StarlarkError) || (PyModule_AddObject(m, "StarlarkError", StarlarkError) < 0))
         goto dead;
 
+    ((PyTypeObject *)StarlarkError)->tp_str = StarlarkError_message;
+    if (!add_getset((PyTypeObject *)StarlarkError, StarlarkError_getset))
+        goto dead;
+
     SyntaxError = PyErr_NewExceptionWithDoc(
         "pystarlark.SyntaxError",
         "Starlark syntax error",
@@ -168,6 +241,10 @@ PyMODINIT_FUNC PyInit_starlark_go(void) {
     );
 
     if ((!SyntaxError) || (PyModule_AddObject(m, "SyntaxError", SyntaxError) < 0))
+        goto dead;
+
+    ((PyTypeObject *)SyntaxError)->tp_str = StarlarkError_message;
+    if (!add_getset((PyTypeObject *)SyntaxError, SyntaxError_getset))
         goto dead;
 
     EvalError = PyErr_NewExceptionWithDoc(
@@ -180,6 +257,8 @@ PyMODINIT_FUNC PyInit_starlark_go(void) {
     if ((!EvalError) || (PyModule_AddObject(m, "EvalError", EvalError) < 0))
         goto dead;
 
+    ((PyTypeObject *)EvalError)->tp_str = StarlarkError_message;
+
     UnexpectedError = PyErr_NewExceptionWithDoc(
         "pystarlark.UnexpectedError",
         "Unexpected error during Starlark evaluation",
@@ -189,6 +268,8 @@ PyMODINIT_FUNC PyInit_starlark_go(void) {
 
     if ((!UnexpectedError) || (PyModule_AddObject(m, "UnexpectedError", UnexpectedError) < 0))
         goto dead;
+
+    ((PyTypeObject *)UnexpectedError)->tp_str = StarlarkError_message;
 
     return m;
 
