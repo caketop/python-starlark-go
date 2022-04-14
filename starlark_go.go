@@ -2,16 +2,21 @@ package main
 
 /*
 #include <stdlib.h>
-void Raise_EvalError(const char *message);
+void Raise_SyntaxError(const char *error, const char *filename, const long line, const long column);
+void Raise_EvalError(const char *error, const char *backtrace);
+void Raise_UnexpectedError(const char *error, const char *err_type);
 */
 import "C"
+
 import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"reflect"
 	"unsafe"
 
 	"go.starlark.net/starlark"
+	"go.starlark.net/syntax"
 )
 
 var THREADS = map[uint64]*starlark.Thread{}
@@ -33,6 +38,46 @@ func DestroyThread(threadId C.ulong) {
 	delete(GLOBALS, goThreadId)
 }
 
+func raiseSyntaxError(err *syntax.Error) {
+	error_msg := C.CString(err.Msg)
+	filename := C.CString(err.Pos.Filename())
+	C.Raise_SyntaxError(error_msg, filename, C.long(err.Pos.Line), C.long(err.Pos.Col))
+	FreeCString(filename)
+	FreeCString(error_msg)
+}
+
+func raiseEvalError(err *starlark.EvalError) {
+	error_msg := C.CString(err.Error())
+	backtrace := C.CString(err.Backtrace())
+	C.Raise_EvalError(error_msg, backtrace)
+	FreeCString(backtrace)
+	FreeCString(error_msg)
+}
+
+func raiseUnexpectedError(err error) {
+	error_msg := C.CString(fmt.Sprintf("%v", err))
+	err_type := C.CString(fmt.Sprintf("%s", reflect.TypeOf(err)))
+	C.Raise_UnexpectedError(error_msg, err_type)
+	FreeCString(err_type)
+	FreeCString(error_msg)
+}
+
+func handleError(err error) {
+	syntaxErr, ok := err.(syntax.Error)
+	if ok {
+		raiseSyntaxError(&syntaxErr)
+		return
+	}
+
+	evalErr, ok := err.(*starlark.EvalError)
+	if ok {
+		raiseEvalError(evalErr)
+		return
+	}
+
+	raiseUnexpectedError(err)
+}
+
 //export Eval
 func Eval(threadId C.ulong, stmt *C.char) *C.char {
 	// Cast *char to string
@@ -44,9 +89,7 @@ func Eval(threadId C.ulong, stmt *C.char) *C.char {
 
 	result, err := starlark.Eval(thread, "<expr>", goStmt, globals)
 	if err != nil {
-		message := C.CString(fmt.Sprintf("%v", err))
-		C.Raise_EvalError(message)
-		FreeCString(message)
+		handleError(err)
 		return nil
 	}
 
@@ -69,9 +112,7 @@ func ExecFile(threadId C.ulong, data *C.char) C.int {
 	thread := THREADS[goThreadId]
 	globals, err := starlark.ExecFile(thread, "main.star", goData, starlark.StringDict{})
 	if err != nil {
-		message := C.CString(fmt.Sprintf("%v", err))
-		C.Raise_EvalError(message)
-		FreeCString(message)
+		handleError(err)
 		return C.int(0)
 	}
 	GLOBALS[goThreadId] = globals

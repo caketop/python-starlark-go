@@ -7,8 +7,10 @@ char *Eval(unsigned long threadId, char *stmt);
 int ExecFile(unsigned long threadId, char *data);
 void FreeCString(char *s);
 
-static PyObject *StarlarkError;
-static PyObject *EvalError;
+static PyObject *StarlarkError = NULL;
+static PyObject *SyntaxError = NULL;
+static PyObject *EvalError = NULL;
+static PyObject *UnexpectedError = NULL;
 
 
 typedef struct {
@@ -17,8 +19,30 @@ typedef struct {
 } StarlarkObject;
 
 
-void Raise_EvalError(const char *message) {
-    PyErr_Format(EvalError, message);
+void Raise_SyntaxError(const char *error, const char *filename, const long line, const long column) {
+    PyObject *exc_args = PyTuple_New(4);
+
+	PyTuple_SetItem(exc_args, 0, PyUnicode_FromString(error));
+	PyTuple_SetItem(exc_args, 1, PyUnicode_FromString(filename));
+	PyTuple_SetItem(exc_args, 2, PyLong_FromLong(line));
+	PyTuple_SetItem(exc_args, 3, PyLong_FromLong(column));
+	PyErr_SetObject(SyntaxError, exc_args);
+}
+
+void Raise_EvalError(const char *error, const char *backtrace) {
+    PyObject *exc_args = PyTuple_New(2);
+
+	PyTuple_SetItem(exc_args, 0, PyUnicode_FromString(error));
+	PyTuple_SetItem(exc_args, 1, PyUnicode_FromString(backtrace));
+	PyErr_SetObject(EvalError, exc_args);
+}
+
+void Raise_UnexpectedError(const char *error, const char *err_type) {
+    PyObject *exc_args = PyTuple_New(2);
+
+	PyTuple_SetItem(exc_args, 0, PyUnicode_FromString(error));
+	PyTuple_SetItem(exc_args, 1, PyUnicode_FromString(err_type));
+	PyErr_SetObject(UnexpectedError, exc_args);
 }
 
 static PyObject* Starlark_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
@@ -123,11 +147,8 @@ PyMODINIT_FUNC PyInit_starlark_go(void) {
         return NULL;
 
     Py_INCREF(&StarlarkType);
-    if (PyModule_AddObject(m, "Starlark", (PyObject *) &StarlarkType) < 0) {
-        Py_DECREF(&StarlarkType);
-        Py_DECREF(m);
-        return NULL;
-    }
+    if (PyModule_AddObject(m, "Starlark", (PyObject *) &StarlarkType) < 0)
+        goto dead;
 
     StarlarkError = PyErr_NewExceptionWithDoc(
         "pystarlark.StarlarkError",
@@ -136,12 +157,18 @@ PyMODINIT_FUNC PyInit_starlark_go(void) {
         NULL
     );
 
-    if ((!StarlarkError) || (PyModule_AddObject(m, "StarlarkError", StarlarkError) < 0)) {
-        Py_CLEAR(StarlarkError);
-        Py_DECREF(&StarlarkType);
-        Py_DECREF(m);
-        return NULL;
-    }
+    if ((!StarlarkError) || (PyModule_AddObject(m, "StarlarkError", StarlarkError) < 0))
+        goto dead;
+
+    SyntaxError = PyErr_NewExceptionWithDoc(
+        "pystarlark.SyntaxError",
+        "Starlark syntax error",
+        StarlarkError,
+        NULL
+    );
+
+    if ((!SyntaxError) || (PyModule_AddObject(m, "SyntaxError", SyntaxError) < 0))
+        goto dead;
 
     EvalError = PyErr_NewExceptionWithDoc(
         "pystarlark.EvalError",
@@ -150,13 +177,28 @@ PyMODINIT_FUNC PyInit_starlark_go(void) {
         NULL
     );
 
-    if ((!EvalError) || (PyModule_AddObject(m, "EvalError", EvalError) < 0)) {
-        Py_CLEAR(EvalError);
-        Py_CLEAR(StarlarkError);
-        Py_DECREF(&StarlarkType);
-        Py_DECREF(m);
-        return NULL;
-    }
+    if ((!EvalError) || (PyModule_AddObject(m, "EvalError", EvalError) < 0))
+        goto dead;
+
+    UnexpectedError = PyErr_NewExceptionWithDoc(
+        "pystarlark.UnexpectedError",
+        "Unexpected error during Starlark evaluation",
+        StarlarkError,
+        NULL
+    );
+
+    if ((!UnexpectedError) || (PyModule_AddObject(m, "UnexpectedError", UnexpectedError) < 0))
+        goto dead;
 
     return m;
+
+dead:
+    Py_CLEAR(UnexpectedError);
+    Py_CLEAR(EvalError);
+    Py_CLEAR(SyntaxError);
+    Py_CLEAR(StarlarkError);
+    Py_DECREF(&StarlarkType);
+    Py_DECREF(m);
+
+    return NULL;
 }
