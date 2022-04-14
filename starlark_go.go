@@ -1,7 +1,8 @@
 package main
 
 /*
- #include <stdlib.h>
+#include <stdlib.h>
+void Raise_EvalError(const char *message);
 */
 import "C"
 import (
@@ -43,8 +44,10 @@ func Eval(threadId C.ulong, stmt *C.char) *C.char {
 
 	result, err := starlark.Eval(thread, "<expr>", goStmt, globals)
 	if err != nil {
-		fmt.Printf("%v\n", err)
-		panic(err)
+		message := C.CString(fmt.Sprintf("%v", err))
+		C.Raise_EvalError(message)
+		FreeCString(message)
+		return nil
 	}
 
 	// Convert starlark.Value struct into a JSON blob
@@ -66,8 +69,10 @@ func ExecFile(threadId C.ulong, data *C.char) C.int {
 	thread := THREADS[goThreadId]
 	globals, err := starlark.ExecFile(thread, "main.star", goData, starlark.StringDict{})
 	if err != nil {
-		fmt.Printf("%v\n", err)
-		panic(err)
+		message := C.CString(fmt.Sprintf("%v", err))
+		C.Raise_EvalError(message)
+		FreeCString(message)
+		return C.int(0)
 	}
 	GLOBALS[goThreadId] = globals
 	return C.int(1)
