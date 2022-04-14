@@ -30,7 +30,7 @@ setuptools.setup(
     ext_modules=[
         setuptools.Extension(
             "pystarlark/_lib/starlark_go",
-            ["src/pystarlark/_lib/starlark_go.go"],
+            ["starlark_go.go"],
         )
     ],
     setup_requires=["setuptools-golang==2.7.0"],
