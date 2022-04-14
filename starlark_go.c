@@ -4,14 +4,22 @@
 unsigned long NewThread();
 void DestroyThread(unsigned long threadId);
 char *Eval(unsigned long threadId, char *stmt);
-void ExecFile(unsigned long threadId, char *data);
+int ExecFile(unsigned long threadId, char *data);
 void FreeCString(char *s);
+
+static PyObject *StarlarkError;
+static PyObject *EvalError;
+
 
 typedef struct {
     PyObject_HEAD
     unsigned long starlark_thread;
 } StarlarkObject;
 
+
+void PyErr_Format_S(PyObject *exception, const char *message) {
+    PyErr_Format(exception, message);
+}
 
 static PyObject* Starlark_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
     StarlarkObject *self;
@@ -43,9 +51,17 @@ static PyObject* Starlark_eval(StarlarkObject *self, PyObject *args) {
         return NULL;
 
     cvalue = Eval(self->starlark_thread, PyBytes_AsString(stmt));
-    value = PyUnicode_FromString(cvalue);
 
-    FreeCString(cvalue);
+    if (cvalue == NULL)
+    {
+        value = NULL;
+    }
+    else
+    {
+        value = PyUnicode_FromString(cvalue);
+        FreeCString(cvalue);
+    }
+
     Py_DecRef(stmt);
 
     return value;
@@ -54,6 +70,7 @@ static PyObject* Starlark_eval(StarlarkObject *self, PyObject *args) {
 static PyObject* Starlark_exec(StarlarkObject *self, PyObject *args) {
     PyObject *obj;
     PyObject *data;
+    int rc;
 
     if (PyArg_ParseTuple(args, "U", &obj) == 0)
         return NULL;
@@ -62,8 +79,11 @@ static PyObject* Starlark_exec(StarlarkObject *self, PyObject *args) {
     if (data == NULL)
         return NULL;
 
-    ExecFile(self->starlark_thread, PyBytes_AsString(data));
+    rc = ExecFile(self->starlark_thread, PyBytes_AsString(data));
     Py_DecRef(data);
+
+    if (!rc)
+        return NULL;
 
     Py_RETURN_NONE;
 }
@@ -104,6 +124,35 @@ PyMODINIT_FUNC PyInit_starlark_go(void) {
 
     Py_INCREF(&StarlarkType);
     if (PyModule_AddObject(m, "Starlark", (PyObject *) &StarlarkType) < 0) {
+        Py_DECREF(&StarlarkType);
+        Py_DECREF(m);
+        return NULL;
+    }
+
+    StarlarkError = PyErr_NewExceptionWithDoc(
+        "pystarlark.StarlarkError",
+        "Base exception class for the pystarlark module",
+        NULL,
+        NULL
+    );
+
+    if ((!StarlarkError) || (PyModule_AddObject(m, "StarlarkError", StarlarkError) < 0)) {
+        Py_CLEAR(StarlarkError);
+        Py_DECREF(&StarlarkType);
+        Py_DECREF(m);
+        return NULL;
+    }
+
+    EvalError = PyErr_NewExceptionWithDoc(
+        "pystarlark.EvalError",
+        "Starlark evaluation error",
+        StarlarkError,
+        NULL
+    );
+
+    if ((!EvalError) || (PyModule_AddObject(m, "EvalError", EvalError) < 0)) {
+        Py_CLEAR(EvalError);
+        Py_CLEAR(StarlarkError);
         Py_DECREF(&StarlarkType);
         Py_DECREF(m);
         return NULL;
