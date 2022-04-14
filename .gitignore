@@ -1,9 +1,12 @@
 __pycache__/
 build/
 dist/
-pystarlark.egg-info/
+*.egg-info/
 .DS_Store
-starlark.o
-starlark.so
+*.o
+*.so
+*.whl
 .eggs
-pystarlark/*.so
+.tox
+core
+wheelhouse

@@ -1,8 +1,8 @@
-# pystarlark
+# pystarlark (Caketop fork)
 
-[![PyPI](https://img.shields.io/pypi/v/pystarlark)](https://pypi.org/project/pystarlark/)
+An experimental fork of experimental Python bindings for [starlark-go](https://github.com/google/starlark-go).
 
-Experimental Python bindings for [starlark-go](https://github.com/google/starlark-go)
+Upstream is at https://github.com/ColdHeat/pystarlark - that's the version on PyPI.
 
 ## Installation
 

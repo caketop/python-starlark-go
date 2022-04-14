@@ -1,0 +1,9 @@
+class Starlark:
+    def __init__(self) -> None:
+        ...
+
+    def eval(self, statement: str) -> str:
+        ...
+
+    def exec(self, data: str) -> None:
+        ...
