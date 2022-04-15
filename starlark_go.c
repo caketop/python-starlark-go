@@ -1,51 +1,71 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
+
+/* This stuff is in the Go file */
 unsigned long NewThread();
 void DestroyThread(unsigned long threadId);
-char *Eval(unsigned long threadId, char *stmt);
-int ExecFile(unsigned long threadId, char *data);
+char *Eval(unsigned long threadId, char *stmt, void **pyThread);
+int ExecFile(unsigned long threadId, char *data, void **pyThread);
 void FreeCString(char *s);
 
+/* Custom exceptions */
 static PyObject *StarlarkError = NULL;
 static PyObject *SyntaxError = NULL;
 static PyObject *EvalError = NULL;
-static PyObject *UnexpectedError = NULL;
 
+static inline PyObject *PyUnicode_Copy(const char *str) {
+    int length = strlen(str);
 
-typedef struct {
-    PyObject_HEAD
-    unsigned long starlark_thread;
-} StarlarkObject;
+    PyObject *pystr = PyUnicode_New(length, 1114111);
+    PyUnicode_CopyCharacters(pystr, 0, PyUnicode_FromString(str), 0, length);
 
+    return pystr;
+}
+/* Helpers to raise custom exceptions from Go */
+void Raise_StarlarkError(const char *error, const char *error_type) {
+    PyThreadState *thread = PyEval_SaveThread();
+    PyGILState_STATE gilstate = PyGILState_Ensure();
+    PyObject *exc_args = PyTuple_New(2);
 
-void Raise_SyntaxError(const char *error, const char *filename, const long line, const long column) {
-    PyObject *exc_args = PyTuple_New(4);
+	PyTuple_SetItem(exc_args, 0, PyUnicode_Copy(error));
+	PyTuple_SetItem(exc_args, 1, PyUnicode_Copy(error_type));
+	PyErr_SetObject(StarlarkError, exc_args);
+    PyGILState_Release(gilstate);
+    PyEval_RestoreThread(thread);
+}
 
-	PyTuple_SetItem(exc_args, 0, PyUnicode_FromString(error));
-	PyTuple_SetItem(exc_args, 1, PyUnicode_FromString(filename));
-	PyTuple_SetItem(exc_args, 2, PyLong_FromLong(line));
-	PyTuple_SetItem(exc_args, 3, PyLong_FromLong(column));
+void Raise_SyntaxError(const char *error, const char *error_type, const char *msg, const char *filename, const long line, const long column) {
+    PyThreadState *thread = PyEval_SaveThread();
+    PyGILState_STATE gilstate = PyGILState_Ensure();
+    PyObject *exc_args = PyTuple_New(6);
+
+	PyTuple_SetItem(exc_args, 0, PyUnicode_Copy(error));
+	PyTuple_SetItem(exc_args, 1, PyUnicode_Copy(error_type));
+	PyTuple_SetItem(exc_args, 2, PyUnicode_Copy(msg));
+	PyTuple_SetItem(exc_args, 3, PyUnicode_Copy(filename));
+	PyTuple_SetItem(exc_args, 4, PyLong_FromLong(line));
+	PyTuple_SetItem(exc_args, 5, PyLong_FromLong(column));
 	PyErr_SetObject(SyntaxError, exc_args);
+    PyGILState_Release(gilstate);
+    PyEval_RestoreThread(thread);
 }
 
-void Raise_EvalError(const char *error, const char *backtrace) {
-    PyObject *exc_args = PyTuple_New(2);
+void Raise_EvalError(const char *error, const char *error_type, const char *backtrace) {
+    PyThreadState *thread = PyEval_SaveThread();
+    PyGILState_STATE gilstate = PyGILState_Ensure();
+    PyObject *exc_args = PyTuple_New(3);
 
-	PyTuple_SetItem(exc_args, 0, PyUnicode_FromString(error));
-	PyTuple_SetItem(exc_args, 1, PyUnicode_FromString(backtrace));
+	PyTuple_SetItem(exc_args, 0, PyUnicode_Copy(error));
+	PyTuple_SetItem(exc_args, 1, PyUnicode_Copy(error_type));
+	PyTuple_SetItem(exc_args, 2, PyUnicode_Copy(backtrace));
 	PyErr_SetObject(EvalError, exc_args);
+    PyGILState_Release(gilstate);
+    PyEval_RestoreThread(thread);
 }
 
-void Raise_UnexpectedError(const char *error, const char *err_type) {
-    PyObject *exc_args = PyTuple_New(2);
-
-	PyTuple_SetItem(exc_args, 0, PyUnicode_FromString(error));
-	PyTuple_SetItem(exc_args, 1, PyUnicode_FromString(err_type));
-	PyErr_SetObject(UnexpectedError, exc_args);
-}
-
-static PyObject *get_arg(PyObject *self, int index) {
+/* Helpers to process custom exception arguments */
+static inline PyObject *get_arg(PyObject *self, int index) {
     if (!PyObject_HasAttrString(self, "args"))
         return NULL;
 
@@ -59,23 +79,79 @@ static PyObject *get_arg(PyObject *self, int index) {
     return arg;
 }
 
-static PyObject *get_arg_str(PyObject *self, int index) {
+static inline PyObject *get_arg_str(PyObject *self, int index) {
     PyObject *arg = get_arg(self, index);
-    if (arg != NULL)
-        arg = PyObject_Str(arg);
+    if (arg == NULL)
+        return PyUnicode_FromString("???");
 
     return arg;
 }
 
-static PyObject *get_arg_int(PyObject *self, int index) {
+static inline PyObject *get_arg_int(PyObject *self, int index) {
     PyObject *arg = get_arg(self, index);
-    if ((arg != NULL) && (!PyLong_Check(arg)))
-        return NULL;
+    if ((arg == NULL) || (!PyLong_Check(arg)))
+        return PyLong_FromLong(-1);
 
     return arg;
 }
 
-int add_getset(PyTypeObject *type, PyGetSetDef *getsets) {
+/* Implementation of __str__ for StarlarkError and subclasses */
+static PyObject *StarlarkError_str(PyObject *self) {
+    return get_arg_str(self, 0);
+}
+
+/* StarlarkError properties */
+static PyObject *StarlarkError_get_error(PyObject *self, void *closure) {
+    return get_arg_str(self, 0);
+}
+
+static PyObject *StarlarkError_get_error_type(PyObject *self, void *closure) {
+    return get_arg_str(self, 1);
+}
+
+static PyGetSetDef StarlarkError_getset[] = {
+    {"error", StarlarkError_get_error, NULL, "Summary of the error", NULL},
+    {"error_type", StarlarkError_get_error_type, NULL, "Name of the Go type of the error", NULL},
+    {NULL}
+};
+
+/* SyntaxError properties */
+static PyObject *SyntaxError_get_msg(PyObject *self, void *closure) {
+    return get_arg_str(self, 2);
+}
+
+static PyObject *SyntaxError_get_filename(PyObject *self, void *closure) {
+    return get_arg_str(self, 3);
+}
+
+static PyObject *SyntaxError_get_line(PyObject *self, void *closure) {
+    return get_arg_int(self, 4);
+}
+
+static PyObject *SyntaxError_get_column(PyObject *self, void *closure) {
+    return get_arg_int(self, 5);
+}
+
+static PyGetSetDef SyntaxError_getset[] = {
+    {"msg", SyntaxError_get_msg, NULL, "Description of the error", NULL},
+    {"filename", SyntaxError_get_filename, NULL, "The name of the file in which the error occurred", NULL},
+    {"line", SyntaxError_get_line, NULL, "The line on which the error occurred", NULL},
+    {"column", SyntaxError_get_column, NULL, "The column on which the error occurred", NULL},
+    {NULL}
+};
+
+/* EvalError properties */
+static PyObject *EvalError_get_backtrace(PyObject *self, void *closure) {
+    return get_arg_str(self, 2);
+}
+
+static PyGetSetDef EvalError_getset[] = {
+    {"backtrace", EvalError_get_backtrace, NULL, "Trace of execution leading to error", NULL},
+    {NULL}
+};
+
+/* Helper to add getters to a type */
+static int add_getset(PyTypeObject *type, PyGetSetDef *getsets) {
     int retval = 1;
 
     for (PyGetSetDef *getset = getsets; getset->name; getset++) {
@@ -94,58 +170,14 @@ int add_getset(PyTypeObject *type, PyGetSetDef *getsets) {
     return retval;
 }
 
-static PyObject *StarlarkError_message(PyObject *self) {
-    PyObject *message = get_arg_str(self, 0);
-    if (message == NULL)
-        return PyUnicode_FromString("Unknown error");
+/* Starlark object */
+typedef struct {
+    PyObject_HEAD
+    unsigned long starlark_thread;
+} StarlarkObject;
 
-    return message;
-}
 
-static PyObject *StarlarkError_second_string(PyObject *self) {
-    PyObject *message = get_arg_str(self, 1);
-    if (message == NULL)
-        return PyUnicode_FromString("Unknown");
-
-    return message;
-}
-
-static PyObject *StarlarkError_get_message(PyObject *self, void *closure) {
-    return StarlarkError_message(self);
-}
-
-static PyObject *StarlarkError_get_second_string(PyObject *self, void *closure) {
-    return StarlarkError_second_string(self);
-}
-
-static PyObject *SyntaxError_get_line(PyObject *self, void *closure) {
-    PyObject *ret = get_arg_int(self, 2);
-    if (ret == NULL)
-        return PyLong_FromLong(-1);
-
-    return ret;
-}
-
-static PyObject *SyntaxError_get_column(PyObject *self, void *closure) {
-    PyObject *ret = get_arg_int(self, 3);
-    if (ret == NULL)
-        return PyLong_FromLong(-1);
-
-    return ret;
-}
-
-static PyGetSetDef StarlarkError_getset[] = {
-    {"message", StarlarkError_get_message, NULL, "A string containing an error message", NULL},
-    {NULL}
-};
-
-static PyGetSetDef SyntaxError_getset[] = {
-    {"filename", StarlarkError_get_second_string, NULL, "The name of the file in which the error occurred", NULL},
-    {"line", SyntaxError_get_line, NULL, "The line on which the error occurred", NULL},
-    {"column", SyntaxError_get_column, NULL, "The column on which the error occurred", NULL},
-    {NULL}
-};
-
+/* Starlark object methods */
 static PyObject* Starlark_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
     StarlarkObject *self;
     self = (StarlarkObject *) type->tp_alloc(type, 0);
@@ -162,11 +194,13 @@ static void Starlark_dealloc(StarlarkObject *self) {
     Py_TYPE(self)->tp_free((PyObject *) self);
 }
 
+
 static PyObject* Starlark_eval(StarlarkObject *self, PyObject *args) {
     PyObject *obj;
     PyObject *stmt;
     char *cvalue;
     PyObject *value;
+    evalReturn retval;
 
     if (PyArg_ParseTuple(args, "U", &obj) == 0)
         return NULL;
@@ -175,7 +209,7 @@ static PyObject* Starlark_eval(StarlarkObject *self, PyObject *args) {
     if (stmt == NULL)
         return NULL;
 
-    cvalue = Eval(self->starlark_thread, PyBytes_AsString(stmt));
+    cvalue = Eval(self->starlark_thread, PyBytes_AsString(stmt), &evalReturn);
 
     if (cvalue == NULL)
     {
@@ -219,6 +253,7 @@ static PyMethodDef Starlark_methods[] = {
     {NULL} /* Sentinel */
 };
 
+/* Starlark object type */
 static PyTypeObject StarlarkType = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "pystarlark._lib.starlark_go.Starlark",
@@ -231,6 +266,7 @@ static PyTypeObject StarlarkType = {
     .tp_methods = Starlark_methods
 };
 
+/* Module */
 static PyModuleDef starlark_go = {
     PyModuleDef_HEAD_INIT,
     .m_name = "pystarlark._lib.starlark_go",
@@ -238,6 +274,7 @@ static PyModuleDef starlark_go = {
     .m_size = -1,
 };
 
+/* Module initialization */
 PyMODINIT_FUNC PyInit_starlark_go(void) {
     PyObject *m;
     if (PyType_Ready(&StarlarkType) < 0)
@@ -253,7 +290,7 @@ PyMODINIT_FUNC PyInit_starlark_go(void) {
 
     StarlarkError = PyErr_NewExceptionWithDoc(
         "pystarlark.StarlarkError",
-        "Base exception class for the pystarlark module",
+        "Unspecified Starlark error",
         NULL,
         NULL
     );
@@ -261,7 +298,7 @@ PyMODINIT_FUNC PyInit_starlark_go(void) {
     if ((!StarlarkError) || (PyModule_AddObject(m, "StarlarkError", StarlarkError) < 0))
         goto dead;
 
-    ((PyTypeObject *)StarlarkError)->tp_str = StarlarkError_message;
+    ((PyTypeObject *)StarlarkError)->tp_str = StarlarkError_str;
     if (!add_getset((PyTypeObject *)StarlarkError, StarlarkError_getset))
         goto dead;
 
@@ -275,7 +312,7 @@ PyMODINIT_FUNC PyInit_starlark_go(void) {
     if ((!SyntaxError) || (PyModule_AddObject(m, "SyntaxError", SyntaxError) < 0))
         goto dead;
 
-    ((PyTypeObject *)SyntaxError)->tp_str = StarlarkError_message;
+    ((PyTypeObject *)SyntaxError)->tp_str = StarlarkError_str;
     if (!add_getset((PyTypeObject *)SyntaxError, SyntaxError_getset))
         goto dead;
 
@@ -289,24 +326,13 @@ PyMODINIT_FUNC PyInit_starlark_go(void) {
     if ((!EvalError) || (PyModule_AddObject(m, "EvalError", EvalError) < 0))
         goto dead;
 
-    ((PyTypeObject *)EvalError)->tp_str = StarlarkError_message;
-
-    UnexpectedError = PyErr_NewExceptionWithDoc(
-        "pystarlark.UnexpectedError",
-        "Unexpected error during Starlark evaluation",
-        StarlarkError,
-        NULL
-    );
-
-    if ((!UnexpectedError) || (PyModule_AddObject(m, "UnexpectedError", UnexpectedError) < 0))
+    ((PyTypeObject *)EvalError)->tp_str = StarlarkError_str;
+    if (!add_getset((PyTypeObject *)EvalError, EvalError_getset))
         goto dead;
-
-    ((PyTypeObject *)UnexpectedError)->tp_str = StarlarkError_message;
 
     return m;
 
 dead:
-    Py_CLEAR(UnexpectedError);
     Py_CLEAR(EvalError);
     Py_CLEAR(SyntaxError);
     Py_CLEAR(StarlarkError);

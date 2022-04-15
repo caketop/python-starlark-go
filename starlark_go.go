@@ -2,9 +2,9 @@ package main
 
 /*
 #include <stdlib.h>
-void Raise_SyntaxError(const char *error, const char *filename, const long line, const long column);
-void Raise_EvalError(const char *error, const char *backtrace);
-void Raise_UnexpectedError(const char *error, const char *err_type);
+void Raise_StarlarkError(const char *error, const char *error_type);
+void Raise_SyntaxError(const char *error, const char *error_type, const char *msg, const char *filename, const long line, const long column);
+void Raise_EvalError(const char *error, const char *error_type, const char *backtrace);
 */
 import "C"
 
@@ -38,28 +38,41 @@ func DestroyThread(threadId C.ulong) {
 	delete(GLOBALS, goThreadId)
 }
 
+func raiseStarlarkError(err error) {
+	error_str := C.CString(err.Error())
+	error_type := C.CString(fmt.Sprintf("%s", reflect.TypeOf(err)))
+
+	C.Raise_StarlarkError(error_str, error_type)
+
+	FreeCString(error_type)
+	FreeCString(error_str)
+}
+
+
 func raiseSyntaxError(err *syntax.Error) {
-	error_msg := C.CString(err.Msg)
+	error_str := C.CString(err.Error())
+	error_type := C.CString(fmt.Sprintf("%s", reflect.TypeOf(err)))
+	msg := C.CString(err.Msg)
 	filename := C.CString(err.Pos.Filename())
-	C.Raise_SyntaxError(error_msg, filename, C.long(err.Pos.Line), C.long(err.Pos.Col))
+
+	C.Raise_SyntaxError(error_str, error_type, msg, filename, C.long(err.Pos.Line), C.long(err.Pos.Col))
+
 	FreeCString(filename)
-	FreeCString(error_msg)
+	FreeCString(msg)
+	FreeCString(error_type)
+	FreeCString(error_str)
 }
 
 func raiseEvalError(err *starlark.EvalError) {
-	error_msg := C.CString(err.Error())
+	error_str := C.CString(err.Error())
+	error_type := C.CString(fmt.Sprintf("%s", reflect.TypeOf(err)))
 	backtrace := C.CString(err.Backtrace())
-	C.Raise_EvalError(error_msg, backtrace)
-	FreeCString(backtrace)
-	FreeCString(error_msg)
-}
 
-func raiseUnexpectedError(err error) {
-	error_msg := C.CString(fmt.Sprintf("%v", err))
-	err_type := C.CString(fmt.Sprintf("%s", reflect.TypeOf(err)))
-	C.Raise_UnexpectedError(error_msg, err_type)
-	FreeCString(err_type)
-	FreeCString(error_msg)
+	C.Raise_EvalError(error_str, error_type, backtrace)
+
+	FreeCString(backtrace)
+	FreeCString(error_type)
+	FreeCString(error_str)
 }
 
 func handleError(err error) {
@@ -75,7 +88,7 @@ func handleError(err error) {
 		return
 	}
 
-	raiseUnexpectedError(err)
+	raiseStarlarkError(err)
 }
 
 //export Eval

@@ -14,9 +14,3 @@ def test_import_evalerror():
     from pystarlark import EvalError, StarlarkError
 
     assert issubclass(EvalError, StarlarkError)
-
-
-def test_import_unexpectederror():
-    from pystarlark import StarlarkError, UnexpectedError
-
-    assert issubclass(UnexpectedError, StarlarkError)
