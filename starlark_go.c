@@ -5,8 +5,8 @@
 /* This stuff is in the Go file */
 unsigned long NewThread();
 void DestroyThread(unsigned long threadId);
-char *Eval(unsigned long threadId, char *stmt, void **pyThread);
-int ExecFile(unsigned long threadId, char *data, void **pyThread);
+char *Eval(unsigned long threadId, char *stmt);
+int ExecFile(unsigned long threadId, char *data);
 void FreeCString(char *s);
 
 /* Custom exceptions */
@@ -17,26 +17,26 @@ static PyObject *EvalError = NULL;
 static inline PyObject *PyUnicode_Copy(const char *str) {
     int length = strlen(str);
 
-    PyObject *pystr = PyUnicode_New(length, 1114111);
-    PyUnicode_CopyCharacters(pystr, 0, PyUnicode_FromString(str), 0, length);
+    PyObject *src = PyUnicode_FromString(str);
+    PyObject *dst = PyUnicode_New(length, 1114111);
+    PyUnicode_CopyCharacters(dst, 0, src, 0, length);
+    Py_DECREF(src);
 
-    return pystr;
+    return dst;
 }
 /* Helpers to raise custom exceptions from Go */
 void Raise_StarlarkError(const char *error, const char *error_type) {
-    PyThreadState *thread = PyEval_SaveThread();
     PyGILState_STATE gilstate = PyGILState_Ensure();
     PyObject *exc_args = PyTuple_New(2);
 
 	PyTuple_SetItem(exc_args, 0, PyUnicode_Copy(error));
 	PyTuple_SetItem(exc_args, 1, PyUnicode_Copy(error_type));
 	PyErr_SetObject(StarlarkError, exc_args);
+    Py_DECREF(exc_args);
     PyGILState_Release(gilstate);
-    PyEval_RestoreThread(thread);
 }
 
 void Raise_SyntaxError(const char *error, const char *error_type, const char *msg, const char *filename, const long line, const long column) {
-    PyThreadState *thread = PyEval_SaveThread();
     PyGILState_STATE gilstate = PyGILState_Ensure();
     PyObject *exc_args = PyTuple_New(6);
 
@@ -47,12 +47,11 @@ void Raise_SyntaxError(const char *error, const char *error_type, const char *ms
 	PyTuple_SetItem(exc_args, 4, PyLong_FromLong(line));
 	PyTuple_SetItem(exc_args, 5, PyLong_FromLong(column));
 	PyErr_SetObject(SyntaxError, exc_args);
+    Py_DECREF(exc_args);
     PyGILState_Release(gilstate);
-    PyEval_RestoreThread(thread);
 }
 
 void Raise_EvalError(const char *error, const char *error_type, const char *backtrace) {
-    PyThreadState *thread = PyEval_SaveThread();
     PyGILState_STATE gilstate = PyGILState_Ensure();
     PyObject *exc_args = PyTuple_New(3);
 
@@ -60,8 +59,8 @@ void Raise_EvalError(const char *error, const char *error_type, const char *back
 	PyTuple_SetItem(exc_args, 1, PyUnicode_Copy(error_type));
 	PyTuple_SetItem(exc_args, 2, PyUnicode_Copy(backtrace));
 	PyErr_SetObject(EvalError, exc_args);
+    Py_DECREF(exc_args);
     PyGILState_Release(gilstate);
-    PyEval_RestoreThread(thread);
 }
 
 /* Helpers to process custom exception arguments */
@@ -82,16 +81,18 @@ static inline PyObject *get_arg(PyObject *self, int index) {
 static inline PyObject *get_arg_str(PyObject *self, int index) {
     PyObject *arg = get_arg(self, index);
     if (arg == NULL)
-        return PyUnicode_FromString("???");
+        arg = PyUnicode_FromString("???");
 
+    Py_INCREF(arg);
     return arg;
 }
 
 static inline PyObject *get_arg_int(PyObject *self, int index) {
     PyObject *arg = get_arg(self, index);
     if ((arg == NULL) || (!PyLong_Check(arg)))
-        return PyLong_FromLong(-1);
+        arg = PyLong_FromLong(-1);
 
+    Py_INCREF(arg);
     return arg;
 }
 
@@ -200,7 +201,6 @@ static PyObject* Starlark_eval(StarlarkObject *self, PyObject *args) {
     PyObject *stmt;
     char *cvalue;
     PyObject *value;
-    evalReturn retval;
 
     if (PyArg_ParseTuple(args, "U", &obj) == 0)
         return NULL;
@@ -209,7 +209,7 @@ static PyObject* Starlark_eval(StarlarkObject *self, PyObject *args) {
     if (stmt == NULL)
         return NULL;
 
-    cvalue = Eval(self->starlark_thread, PyBytes_AsString(stmt), &evalReturn);
+    cvalue = Eval(self->starlark_thread, PyBytes_AsString(stmt));
 
     if (cvalue == NULL)
     {
