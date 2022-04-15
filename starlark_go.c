@@ -67,16 +67,30 @@ static PyObject *get_arg_str(PyObject *self, int index) {
     return arg;
 }
 
-int add_getset(PyTypeObject *type, PyGetSetDef getset[]) {
-    int retval = 1;
-    PyObject *descr = PyDescr_NewGetSet(type, getset);
+static PyObject *get_arg_int(PyObject *self, int index) {
+    PyObject *arg = get_arg(self, index);
+    if ((arg != NULL) && (!PyLong_Check(arg)))
+        return NULL;
 
-    if (PyDict_SetItem(type->tp_dict, PyDescr_NAME(descr), descr) < 0) {
-        PyErr_SetString(PyExc_RuntimeError, "failed to add getset");
-        retval = 0;
+    return arg;
+}
+
+int add_getset(PyTypeObject *type, PyGetSetDef *getsets) {
+    int retval = 1;
+
+    for (PyGetSetDef *getset = getsets; getset->name; getset++) {
+        PyObject *descr = PyDescr_NewGetSet(type, getset);
+
+        if (PyDict_SetItem(type->tp_dict, PyDescr_NAME(descr), descr) < 0) {
+            PyErr_SetString(PyExc_RuntimeError, "failed to add getset");
+            retval = 0;
+        }
+
+        Py_DECREF(descr);
+        if (retval != 1)
+            break;
     }
 
-	Py_DECREF(descr);
     return retval;
 }
 
@@ -104,13 +118,31 @@ static PyObject *StarlarkError_get_second_string(PyObject *self, void *closure) 
     return StarlarkError_second_string(self);
 }
 
+static PyObject *SyntaxError_get_line(PyObject *self, void *closure) {
+    PyObject *ret = get_arg_int(self, 2);
+    if (ret == NULL)
+        return PyLong_FromLong(-1);
+
+    return ret;
+}
+
+static PyObject *SyntaxError_get_column(PyObject *self, void *closure) {
+    PyObject *ret = get_arg_int(self, 3);
+    if (ret == NULL)
+        return PyLong_FromLong(-1);
+
+    return ret;
+}
+
 static PyGetSetDef StarlarkError_getset[] = {
-    {"message", StarlarkError_get_message, NULL, NULL, NULL},
+    {"message", StarlarkError_get_message, NULL, "A string containing an error message", NULL},
     {NULL}
 };
 
 static PyGetSetDef SyntaxError_getset[] = {
-    {"filename", StarlarkError_get_second_string, NULL, NULL, NULL},
+    {"filename", StarlarkError_get_second_string, NULL, "The name of the file in which the error occurred", NULL},
+    {"line", SyntaxError_get_line, NULL, "The line on which the error occurred", NULL},
+    {"column", SyntaxError_get_column, NULL, "The column on which the error occurred", NULL},
     {NULL}
 };
 
