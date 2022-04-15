@@ -48,7 +48,6 @@ func raiseStarlarkError(err error) {
 	FreeCString(error_str)
 }
 
-
 func raiseSyntaxError(err *syntax.Error) {
 	error_str := C.CString(err.Error())
 	error_type := C.CString(fmt.Sprintf("%s", reflect.TypeOf(err)))
