@@ -11,9 +11,6 @@ __version__ = "0.0.2"
 
 
 class Starlark(StarlarkGo):
-    def eval(self, statement: str, _raw: bool = False) -> Any:
+    def eval(self, statement: str) -> Any:
         response = super().eval(statement)
-        if _raw:
-            return response
-        value = json.loads(response)["value"]
-        return literal_eval(value)
+        return literal_eval(response)

@@ -2,14 +2,11 @@ package main
 
 /*
 #include <stdlib.h>
-void Raise_StarlarkError(const char *error, const char *error_type);
-void Raise_SyntaxError(const char *error, const char *error_type, const char *msg, const char *filename, const long line, const long column);
-void Raise_EvalError(const char *error, const char *error_type, const char *backtrace);
+#include <starlark.h>
 */
 import "C"
 
 import (
-	"encoding/json"
 	"fmt"
 	"math/rand"
 	"reflect"
@@ -38,60 +35,104 @@ func DestroyThread(threadId C.ulong) {
 	delete(GLOBALS, goThreadId)
 }
 
-func raiseStarlarkError(err error) {
-	error_str := C.CString(err.Error())
-	error_type := C.CString(fmt.Sprintf("%s", reflect.TypeOf(err)))
+func makeStarlarkErrorArgs(err error) *C.StarlarkErrorArgs {
+	args := (*C.StarlarkErrorArgs)(C.malloc(C.sizeof_StarlarkErrorArgs))
+	args.error = C.CString(err.Error())
+	args.error_type = C.CString(fmt.Sprintf("%s", reflect.TypeOf(err)))
 
-	C.Raise_StarlarkError(error_str, error_type)
-
-	FreeCString(error_type)
-	FreeCString(error_str)
+	return args
 }
 
-func raiseSyntaxError(err *syntax.Error) {
-	error_str := C.CString(err.Error())
-	error_type := C.CString(fmt.Sprintf("%s", reflect.TypeOf(err)))
-	msg := C.CString(err.Msg)
-	filename := C.CString(err.Pos.Filename())
+func makeSyntaxErrorArgs(err *syntax.Error) *C.SyntaxErrorArgs {
+	args := (*C.SyntaxErrorArgs)(C.malloc(C.sizeof_SyntaxErrorArgs))
+	args.error = C.CString(err.Error())
+	args.error_type = C.CString(fmt.Sprintf("%s", reflect.TypeOf(err)))
+	args.msg = C.CString(err.Msg)
+	args.filename = C.CString(err.Pos.Filename())
+	args.line = C.uint(err.Pos.Line)
+	args.column = C.uint(err.Pos.Col)
 
-	C.Raise_SyntaxError(error_str, error_type, msg, filename, C.long(err.Pos.Line), C.long(err.Pos.Col))
-
-	FreeCString(filename)
-	FreeCString(msg)
-	FreeCString(error_type)
-	FreeCString(error_str)
+	return args
 }
 
-func raiseEvalError(err *starlark.EvalError) {
-	error_str := C.CString(err.Error())
-	error_type := C.CString(fmt.Sprintf("%s", reflect.TypeOf(err)))
-	backtrace := C.CString(err.Backtrace())
+func makeEvalErrorArgs(err *starlark.EvalError) *C.EvalErrorArgs {
+	args := (*C.EvalErrorArgs)(C.malloc(C.sizeof_EvalErrorArgs))
+	args.error = C.CString(err.Error())
+	args.error_type = C.CString(fmt.Sprintf("%s", reflect.TypeOf(err)))
+	args.backtrace = C.CString(err.Backtrace())
 
-	C.Raise_EvalError(error_str, error_type, backtrace)
-
-	FreeCString(backtrace)
-	FreeCString(error_type)
-	FreeCString(error_str)
+	return args
 }
 
-func handleError(err error) {
-	syntaxErr, ok := err.(syntax.Error)
-	if ok {
-		raiseSyntaxError(&syntaxErr)
-		return
+func makeStarlarkReturn(err error) *C.StarlarkReturn {
+	retval := (*C.StarlarkReturn)(C.malloc(C.sizeof_StarlarkReturn))
+	retval.value = nil
+
+	if err != nil {
+		syntaxErr, ok := err.(syntax.Error)
+		if ok {
+			retval.error_type = C.STARLARK_SYNTAX_ERROR
+			retval.error = unsafe.Pointer(makeSyntaxErrorArgs(&syntaxErr))
+			return retval
+		}
+
+		evalErr, ok := err.(*starlark.EvalError)
+		if ok {
+			retval.error_type = C.STARLARK_EVAL_ERROR
+			retval.error = unsafe.Pointer(makeEvalErrorArgs(evalErr))
+			return retval
+		}
+
+		retval.error_type = C.STARLARK_GENERAL_ERROR
+		retval.error = unsafe.Pointer(makeStarlarkErrorArgs(err))
+		return retval
 	}
 
-	evalErr, ok := err.(*starlark.EvalError)
-	if ok {
-		raiseEvalError(evalErr)
-		return
+	retval.error_type = C.STARLARK_NO_ERROR
+	retval.error = nil
+
+	return retval
+}
+
+//export FreeStarlarkReturn
+func FreeStarlarkReturn(retval *C.StarlarkReturn) {
+	switch retval.error_type {
+	case C.STARLARK_GENERAL_ERROR:
+		args := (*C.StarlarkErrorArgs)(retval.error)
+		C.free(unsafe.Pointer(args.error))
+		C.free(unsafe.Pointer(args.error_type))
+	case C.STARLARK_SYNTAX_ERROR:
+		args := (*C.SyntaxErrorArgs)(retval.error)
+		C.free(unsafe.Pointer(args.error))
+		C.free(unsafe.Pointer(args.error_type))
+		C.free(unsafe.Pointer(args.msg))
+		C.free(unsafe.Pointer(args.filename))
+	case C.STARLARK_EVAL_ERROR:
+		args := (*C.EvalErrorArgs)(retval.error)
+		C.free(unsafe.Pointer(args.error))
+		C.free(unsafe.Pointer(args.error_type))
+		C.free(unsafe.Pointer(args.backtrace))
+	case C.STARLARK_NO_ERROR:
+		if retval.error != nil {
+			panic("STARLARK_NO_ERROR but error is not nil")
+		}
+	default:
+		panic("unknown error_type")
 	}
 
-	raiseStarlarkError(err)
+	if retval.value != nil {
+		C.free(unsafe.Pointer(retval.value))
+	}
+
+	if retval.error != nil {
+		C.free(unsafe.Pointer(retval.error))
+	}
+
+	C.free(unsafe.Pointer(retval))
 }
 
 //export Eval
-func Eval(threadId C.ulong, stmt *C.char) *C.char {
+func Eval(threadId C.ulong, stmt *C.char) *C.StarlarkReturn {
 	// Cast *char to string
 	goStmt := C.GoString(stmt)
 	goThreadId := uint64(threadId)
@@ -100,57 +141,30 @@ func Eval(threadId C.ulong, stmt *C.char) *C.char {
 	globals := GLOBALS[goThreadId]
 
 	result, err := starlark.Eval(thread, "<expr>", goStmt, globals)
-	if err != nil {
-		handleError(err)
-		return nil
+	retval := makeStarlarkReturn(err)
+
+	if err == nil {
+		retval.value = C.CString(result.String())
 	}
 
-	// Convert starlark.Value struct into a JSON blob
-	rawResponse := make(map[string]string)
-	rawResponse["value"] = result.String()
-	rawResponse["type"] = result.Type()
-	response, _ := json.Marshal(rawResponse)
-
-	// Convert JSON blob to string and then CString
-	return C.CString(string(response))
+	return retval
 }
 
 //export ExecFile
-func ExecFile(threadId C.ulong, data *C.char) C.int {
+func ExecFile(threadId C.ulong, data *C.char) *C.StarlarkReturn {
 	// Cast *char to string
 	goData := C.GoString(data)
 	goThreadId := uint64(threadId)
 
 	thread := THREADS[goThreadId]
 	globals, err := starlark.ExecFile(thread, "main.star", goData, starlark.StringDict{})
-	if err != nil {
-		handleError(err)
-		return C.int(0)
-	}
-	GLOBALS[goThreadId] = globals
-	return C.int(1)
-}
+	retval := makeStarlarkReturn(err)
 
-//export FreeCString
-func FreeCString(s *C.char) {
-	C.free(unsafe.Pointer(s))
+	if err == nil {
+		GLOBALS[goThreadId] = globals
+	}
+
+	return retval
 }
 
 func main() {}
-
-/*
-func main() {
-	const data = `
-def fibonacci(n=10):
-	res = list(range(n))
-	for i in res[2:]:
-		res[i] = res[i-2] + res[i-1]
-	return res
-`
-	threadId := NewThread()
-	ExecFile(threadId, C.CString(data))
-	r := Eval(threadId, C.CString("fibonacci(25)"))
-	fmt.Printf("%v\n", C.GoString(r))
-	DestroyThread(threadId)
-}
-*/

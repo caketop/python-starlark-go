@@ -1,12 +1,13 @@
 #define PY_SSIZE_T_CLEAN
+#include "starlark.h"
 #include <Python.h>
 
 /* This stuff is in the Go file */
 unsigned long NewThread();
 void DestroyThread(unsigned long threadId);
-char *Eval(unsigned long threadId, char *stmt);
-int ExecFile(unsigned long threadId, char *data);
-void FreeCString(char *s);
+StarlarkReturn *Eval(unsigned long threadId, char *stmt);
+StarlarkReturn *ExecFile(unsigned long threadId, char *data);
+void FreeStarlarkReturn(StarlarkReturn *retval);
 
 /* Custom exceptions */
 static PyObject *StarlarkError = NULL;
@@ -14,32 +15,43 @@ static PyObject *SyntaxError = NULL;
 static PyObject *EvalError = NULL;
 
 /* Helpers to raise custom exceptions from Go */
-void Raise_StarlarkError(const char *error, const char *error_type) {
-  PyGILState_STATE gilstate = PyGILState_Ensure();
-  PyObject *exc_args = Py_BuildValue("ss", error, error_type);
-  PyErr_SetObject(StarlarkError, exc_args);
-  Py_DECREF(exc_args);
-  PyGILState_Release(gilstate);
+static PyObject *PyStarlarkErrorArgs(StarlarkErrorArgs *args) {
+  return Py_BuildValue("ss", args->error, args->error_type);
 }
 
-void Raise_SyntaxError(const char *error, const char *error_type,
-                       const char *msg, const char *filename, const long line,
-                       const long column) {
-  PyGILState_STATE gilstate = PyGILState_Ensure();
-  PyObject *exc_args =
-      Py_BuildValue("ssssll", error, error_type, msg, filename, line, column);
-  PyErr_SetObject(SyntaxError, exc_args);
-  Py_DECREF(exc_args);
-  PyGILState_Release(gilstate);
+static PyObject *PySyntaxErrorArgs(SyntaxErrorArgs *args) {
+  return Py_BuildValue("ssssll", args->error, args->error_type, args->msg,
+                       args->filename, args->line, args->column);
 }
 
-void Raise_EvalError(const char *error, const char *error_type,
-                     const char *backtrace) {
-  PyGILState_STATE gilstate = PyGILState_Ensure();
-  PyObject *exc_args = Py_BuildValue("sss", error, error_type, backtrace);
-  PyErr_SetObject(EvalError, exc_args);
+static PyObject *PyEvalErrorArgs(EvalErrorArgs *args) {
+  return Py_BuildValue("sss", args->error, args->error_type, args->backtrace);
+}
+
+static void HandleStarlarkError(StarlarkReturn *retval) {
+  PyObject *exc_args = NULL;
+  PyObject *exc_type = NULL;
+
+  switch (retval->error_type) {
+  case STARLARK_GENERAL_ERROR:
+    exc_type = StarlarkError;
+    exc_args = PyStarlarkErrorArgs((StarlarkErrorArgs *)retval->error);
+    break;
+  case STARLARK_SYNTAX_ERROR:
+    exc_type = SyntaxError;
+    exc_args = PySyntaxErrorArgs((SyntaxErrorArgs *)retval->error);
+    break;
+  case STARLARK_EVAL_ERROR:
+    exc_type = EvalError;
+    exc_args = PyEvalErrorArgs((EvalErrorArgs *)retval->error);
+    break;
+  default:
+    exc_type = PyExc_RuntimeError;
+    exc_args = PyUnicode_FromString("Unknown StarlarkReturn->error_type");
+  }
+
+  PyErr_SetObject(exc_type, exc_args);
   Py_DECREF(exc_args);
-  PyGILState_Release(gilstate);
 }
 
 /* Starlark object */
@@ -65,8 +77,8 @@ static void StarlarkGo_dealloc(StarlarkGo *self) {
 static PyObject *StarlarkGo_eval(StarlarkGo *self, PyObject *args) {
   PyObject *obj;
   PyObject *stmt;
-  char *cvalue;
-  PyObject *value;
+  StarlarkReturn *retval;
+  PyObject *value = NULL;
 
   if (PyArg_ParseTuple(args, "U", &obj) == 0)
     return NULL;
@@ -75,15 +87,17 @@ static PyObject *StarlarkGo_eval(StarlarkGo *self, PyObject *args) {
   if (stmt == NULL)
     return NULL;
 
-  cvalue = Eval(self->starlark_thread, PyBytes_AsString(stmt));
+  retval = Eval(self->starlark_thread, PyBytes_AsString(stmt));
 
-  if (cvalue == NULL) {
-    value = NULL;
+  if (retval->error != NULL) {
+    HandleStarlarkError(retval);
+  } else if (retval->value == NULL) {
+    PyErr_SetString(PyExc_RuntimeError, "Starlark value is NULL");
   } else {
-    value = PyUnicode_FromString(cvalue);
-    FreeCString(cvalue);
+    value = PyUnicode_FromString(retval->value);
   }
 
+  FreeStarlarkReturn(retval);
   Py_DecRef(stmt);
 
   return value;
@@ -92,7 +106,8 @@ static PyObject *StarlarkGo_eval(StarlarkGo *self, PyObject *args) {
 static PyObject *StarlarkGo_exec(StarlarkGo *self, PyObject *args) {
   PyObject *obj;
   PyObject *data;
-  int rc;
+  StarlarkReturn *retval;
+  int ok = 0;
 
   if (PyArg_ParseTuple(args, "U", &obj) == 0)
     return NULL;
@@ -101,10 +116,17 @@ static PyObject *StarlarkGo_exec(StarlarkGo *self, PyObject *args) {
   if (data == NULL)
     return NULL;
 
-  rc = ExecFile(self->starlark_thread, PyBytes_AsString(data));
+  retval = ExecFile(self->starlark_thread, PyBytes_AsString(data));
+
+  if (retval->error != NULL) {
+    HandleStarlarkError(retval);
+  } else {
+    ok = 1;
+  }
+
   Py_DecRef(data);
 
-  if (!rc)
+  if (!ok)
     return NULL;
 
   Py_RETURN_NONE;
