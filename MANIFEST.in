@@ -2,3 +2,4 @@ include go.mod
 include go.sum
 include starlark.c
 include starlark.go
+include starlark.h
