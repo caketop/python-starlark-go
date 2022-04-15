@@ -5,9 +5,9 @@ from typing import Any
 
 from pystarlark._lib.starlark_go import EvalError
 from pystarlark._lib.starlark_go import Starlark as LibStarlark
-from pystarlark._lib.starlark_go import StarlarkError, SyntaxError, UnexpectedError
+from pystarlark._lib.starlark_go import StarlarkError, SyntaxError
 
-__all__ = ["Starlark", "StarlarkError", "EvalError", "SyntaxError", "UnexpectedError"]
+__all__ = ["Starlark", "StarlarkError", "EvalError", "SyntaxError"]
 __version__ = "0.0.2"
 
 
