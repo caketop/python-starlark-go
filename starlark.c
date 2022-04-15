@@ -42,13 +42,12 @@ void Raise_EvalError(const char *error, const char *error_type, const char *back
 typedef struct {
     PyObject_HEAD
     unsigned long starlark_thread;
-} StarlarkObject;
-
+} StarlarkGo;
 
 /* Starlark object methods */
-static PyObject* Starlark_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
-    StarlarkObject *self;
-    self = (StarlarkObject *) type->tp_alloc(type, 0);
+static PyObject* StarlarkGo_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
+    StarlarkGo *self;
+    self = (StarlarkGo *) type->tp_alloc(type, 0);
 
     if (self != NULL)
         self->starlark_thread = NewThread();
@@ -56,12 +55,12 @@ static PyObject* Starlark_new(PyTypeObject *type, PyObject *args, PyObject *kwds
     return (PyObject *) self;
 }
 
-static void Starlark_dealloc(StarlarkObject *self) {
+static void StarlarkGo_dealloc(StarlarkGo *self) {
     DestroyThread(self->starlark_thread);
     Py_TYPE(self)->tp_free((PyObject *) self);
 }
 
-static PyObject* Starlark_eval(StarlarkObject *self, PyObject *args) {
+static PyObject* StarlarkGo_eval(StarlarkGo *self, PyObject *args) {
     PyObject *obj;
     PyObject *stmt;
     char *cvalue;
@@ -91,7 +90,7 @@ static PyObject* Starlark_eval(StarlarkObject *self, PyObject *args) {
     return value;
 }
 
-static PyObject* Starlark_exec(StarlarkObject *self, PyObject *args) {
+static PyObject* StarlarkGo_exec(StarlarkGo *self, PyObject *args) {
     PyObject *obj;
     PyObject *data;
     int rc;
@@ -112,29 +111,29 @@ static PyObject* Starlark_exec(StarlarkObject *self, PyObject *args) {
     Py_RETURN_NONE;
 }
 
-static PyMethodDef Starlark_methods[] = {
-    {"eval", (PyCFunction) Starlark_eval, METH_VARARGS, "Evaluate a Starlark expression"},
-    {"exec", (PyCFunction) Starlark_exec, METH_VARARGS, "Execute Starlark code, modifying the global state"},
+static PyMethodDef StarlarkGo_methods[] = {
+    {"eval", (PyCFunction) StarlarkGo_eval, METH_VARARGS, "Evaluate a Starlark expression"},
+    {"exec", (PyCFunction) StarlarkGo_exec, METH_VARARGS, "Execute Starlark code, modifying the global state"},
     {NULL} /* Sentinel */
 };
 
 /* Starlark object type */
-static PyTypeObject StarlarkType = {
+static PyTypeObject StarlarkGoType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "pystarlark._lib.starlark_go.Starlark",
+    .tp_name = "pystarlark._lib.StarlarkGo",
     .tp_doc = "Starlark interpreter",
-    .tp_basicsize = sizeof(StarlarkObject),
+    .tp_basicsize = sizeof(StarlarkGo),
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-    .tp_new = (initproc) Starlark_new,
-    .tp_dealloc = (destructor) Starlark_dealloc,
-    .tp_methods = Starlark_methods
+    .tp_new = (initproc) StarlarkGo_new,
+    .tp_dealloc = (destructor) StarlarkGo_dealloc,
+    .tp_methods = StarlarkGo_methods
 };
 
 /* Module */
-static PyModuleDef starlark_go = {
+static PyModuleDef pystarlark_lib = {
     PyModuleDef_HEAD_INIT,
-    .m_name = "pystarlark._lib.starlark_go",
+    .m_name = "pystarlark._lib",
     .m_doc = "Interface to starlark-go",
     .m_size = -1,
 };
@@ -150,7 +149,7 @@ static PyObject *get_exception_class(PyObject *errors, const char *name) {
 }
 
 /* Module initialization */
-PyMODINIT_FUNC PyInit_starlark_go(void) {
+PyMODINIT_FUNC PyInit__lib(void) {
     PyObject *errors = PyImport_ImportModule("pystarlark.errors");
     if (errors == NULL)
         return NULL;
@@ -168,16 +167,16 @@ PyMODINIT_FUNC PyInit_starlark_go(void) {
         return NULL;
 
     PyObject *m;
-    if (PyType_Ready(&StarlarkType) < 0)
+    if (PyType_Ready(&StarlarkGoType) < 0)
         return NULL;
 
-    m = PyModule_Create(&starlark_go);
+    m = PyModule_Create(&pystarlark_lib);
     if (m == NULL)
         return NULL;
 
-    Py_INCREF(&StarlarkType);
-    if (PyModule_AddObject(m, "Starlark", (PyObject *) &StarlarkType) < 0) {
-        Py_DECREF(&StarlarkType);
+    Py_INCREF(&StarlarkGoType);
+    if (PyModule_AddObject(m, "StarlarkGo", (PyObject *) &StarlarkGoType) < 0) {
+        Py_DECREF(&StarlarkGoType);
         Py_DECREF(m);
 
         return NULL;
