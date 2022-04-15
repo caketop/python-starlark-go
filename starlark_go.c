@@ -1,7 +1,6 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
-
 /* This stuff is in the Go file */
 unsigned long NewThread();
 void DestroyThread(unsigned long threadId);
@@ -14,23 +13,10 @@ static PyObject *StarlarkError = NULL;
 static PyObject *SyntaxError = NULL;
 static PyObject *EvalError = NULL;
 
-static inline PyObject *PyUnicode_Copy(const char *str) {
-    int length = strlen(str);
-
-    PyObject *src = PyUnicode_FromString(str);
-    PyObject *dst = PyUnicode_New(length, 1114111);
-    PyUnicode_CopyCharacters(dst, 0, src, 0, length);
-    Py_DECREF(src);
-
-    return dst;
-}
 /* Helpers to raise custom exceptions from Go */
 void Raise_StarlarkError(const char *error, const char *error_type) {
     PyGILState_STATE gilstate = PyGILState_Ensure();
-    PyObject *exc_args = PyTuple_New(2);
-
-	PyTuple_SetItem(exc_args, 0, PyUnicode_Copy(error));
-	PyTuple_SetItem(exc_args, 1, PyUnicode_Copy(error_type));
+    PyObject *exc_args = Py_BuildValue("ss", error, error_type);
 	PyErr_SetObject(StarlarkError, exc_args);
     Py_DECREF(exc_args);
     PyGILState_Release(gilstate);
@@ -38,14 +24,7 @@ void Raise_StarlarkError(const char *error, const char *error_type) {
 
 void Raise_SyntaxError(const char *error, const char *error_type, const char *msg, const char *filename, const long line, const long column) {
     PyGILState_STATE gilstate = PyGILState_Ensure();
-    PyObject *exc_args = PyTuple_New(6);
-
-	PyTuple_SetItem(exc_args, 0, PyUnicode_Copy(error));
-	PyTuple_SetItem(exc_args, 1, PyUnicode_Copy(error_type));
-	PyTuple_SetItem(exc_args, 2, PyUnicode_Copy(msg));
-	PyTuple_SetItem(exc_args, 3, PyUnicode_Copy(filename));
-	PyTuple_SetItem(exc_args, 4, PyLong_FromLong(line));
-	PyTuple_SetItem(exc_args, 5, PyLong_FromLong(column));
+    PyObject *exc_args = Py_BuildValue("ssssll", error, error_type, msg, filename, line, column);
 	PyErr_SetObject(SyntaxError, exc_args);
     Py_DECREF(exc_args);
     PyGILState_Release(gilstate);
@@ -53,11 +32,7 @@ void Raise_SyntaxError(const char *error, const char *error_type, const char *ms
 
 void Raise_EvalError(const char *error, const char *error_type, const char *backtrace) {
     PyGILState_STATE gilstate = PyGILState_Ensure();
-    PyObject *exc_args = PyTuple_New(3);
-
-	PyTuple_SetItem(exc_args, 0, PyUnicode_Copy(error));
-	PyTuple_SetItem(exc_args, 1, PyUnicode_Copy(error_type));
-	PyTuple_SetItem(exc_args, 2, PyUnicode_Copy(backtrace));
+    PyObject *exc_args = Py_BuildValue("sss", error, error_type, backtrace);
 	PyErr_SetObject(EvalError, exc_args);
     Py_DECREF(exc_args);
     PyGILState_Release(gilstate);
@@ -290,7 +265,7 @@ PyMODINIT_FUNC PyInit_starlark_go(void) {
 
     StarlarkError = PyErr_NewExceptionWithDoc(
         "pystarlark.StarlarkError",
-        "Unspecified Starlark error",
+        "Starlark general error",
         NULL,
         NULL
     );

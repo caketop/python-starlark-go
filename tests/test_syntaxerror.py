@@ -26,18 +26,18 @@ def test_syntaxerror_attrs():
         assert isinstance(e.error, str)
         assert hasattr(e, "error_type")
         assert isinstance(e.error_type, str)
-        # assert e.error_type == "syntax.Error"
+        assert e.error_type == "*syntax.Error"
         assert hasattr(e, "msg")
         assert isinstance(e.msg, str)
         assert hasattr(e, "filename")
         assert isinstance(e.filename, str)
-        # assert e.filename == "<eval>"
+        assert e.filename == "<expr>"
         assert hasattr(e, "line")
         assert isinstance(e.line, int)
-        # assert e.line == 1
+        assert e.line == 1
         assert hasattr(e, "column")
         assert isinstance(e.column, int)
-        # assert e.column == 2
+        assert e.column == 2
         raised = True
 
     assert raised
