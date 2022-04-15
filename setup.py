@@ -29,8 +29,8 @@ setuptools.setup(
     build_golang={"root": "github.com/caketop/pystarlark", "strip": False},
     ext_modules=[
         setuptools.Extension(
-            "pystarlark/_lib/starlark_go",
-            ["starlark_go.go"],
+            "pystarlark/_lib",
+            ["starlark.go"],
         )
     ],
     setup_requires=["setuptools-golang==2.7.0"],
