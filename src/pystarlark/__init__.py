@@ -3,9 +3,8 @@ import json
 from ast import literal_eval
 from typing import Any
 
-from pystarlark._lib.starlark_go import EvalError
 from pystarlark._lib.starlark_go import Starlark as LibStarlark
-from pystarlark._lib.starlark_go import StarlarkError, SyntaxError
+from pystarlark.errors import EvalError, StarlarkError, SyntaxError
 
 __all__ = ["Starlark", "StarlarkError", "EvalError", "SyntaxError"]
 __version__ = "0.0.2"
