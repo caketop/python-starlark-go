@@ -146,7 +146,7 @@ static PyTypeObject StarlarkGoType = {
         .tp_name = "pystarlark._lib.StarlarkGo",
     .tp_doc = "Starlark interpreter", .tp_basicsize = sizeof(StarlarkGo),
     .tp_itemsize = 0, .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-    .tp_new = (initproc)StarlarkGo_new,
+    .tp_new = (newfunc)StarlarkGo_new,
     .tp_dealloc = (destructor)StarlarkGo_dealloc,
     .tp_methods = StarlarkGo_methods};
 
