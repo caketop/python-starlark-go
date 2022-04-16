@@ -55,7 +55,9 @@ static void HandleStarlarkError(StarlarkReturn *retval) {
 }
 
 /* Starlark object */
-typedef struct { PyObject_HEAD unsigned long starlark_thread; } StarlarkGo;
+typedef struct {
+  PyObject_HEAD unsigned long starlark_thread;
+} StarlarkGo;
 
 /* Starlark object methods */
 static PyObject *StarlarkGo_new(PyTypeObject *type, PyObject *args,
@@ -144,16 +146,20 @@ static PyMethodDef StarlarkGo_methods[] = {
 static PyTypeObject StarlarkGoType = {
     PyVarObject_HEAD_INIT(NULL, 0) // this confuses clang-format
         .tp_name = "pystarlark._lib.StarlarkGo",
-    .tp_doc = "Starlark interpreter", .tp_basicsize = sizeof(StarlarkGo),
-    .tp_itemsize = 0, .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    .tp_doc = "Starlark interpreter",
+    .tp_basicsize = sizeof(StarlarkGo),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_new = (newfunc)StarlarkGo_new,
     .tp_dealloc = (destructor)StarlarkGo_dealloc,
     .tp_methods = StarlarkGo_methods};
 
 /* Module */
 static PyModuleDef pystarlark_lib = {
-    PyModuleDef_HEAD_INIT, .m_name = "pystarlark._lib",
-    .m_doc = "Interface to starlark-go", .m_size = -1,
+    PyModuleDef_HEAD_INIT,
+    .m_name = "pystarlark._lib",
+    .m_doc = "Interface to starlark-go",
+    .m_size = -1,
 };
 
 /* Helper to fetch exception classes */

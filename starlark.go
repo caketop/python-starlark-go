@@ -7,7 +7,6 @@ package main
 import "C"
 
 import (
-	"fmt"
 	"math/rand"
 	"reflect"
 	"unsafe"
@@ -38,7 +37,7 @@ func DestroyThread(threadId C.ulong) {
 func makeStarlarkErrorArgs(err error) *C.StarlarkErrorArgs {
 	args := (*C.StarlarkErrorArgs)(C.malloc(C.sizeof_StarlarkErrorArgs))
 	args.error = C.CString(err.Error())
-	args.error_type = C.CString(fmt.Sprintf("%s", reflect.TypeOf(err)))
+	args.error_type = C.CString(reflect.TypeOf(err).String())
 
 	return args
 }
@@ -46,7 +45,7 @@ func makeStarlarkErrorArgs(err error) *C.StarlarkErrorArgs {
 func makeSyntaxErrorArgs(err *syntax.Error) *C.SyntaxErrorArgs {
 	args := (*C.SyntaxErrorArgs)(C.malloc(C.sizeof_SyntaxErrorArgs))
 	args.error = C.CString(err.Error())
-	args.error_type = C.CString(fmt.Sprintf("%s", reflect.TypeOf(err)))
+	args.error_type = C.CString(reflect.TypeOf(err).String())
 	args.msg = C.CString(err.Msg)
 	args.filename = C.CString(err.Pos.Filename())
 	args.line = C.uint(err.Pos.Line)
@@ -58,7 +57,7 @@ func makeSyntaxErrorArgs(err *syntax.Error) *C.SyntaxErrorArgs {
 func makeEvalErrorArgs(err *starlark.EvalError) *C.EvalErrorArgs {
 	args := (*C.EvalErrorArgs)(C.malloc(C.sizeof_EvalErrorArgs))
 	args.error = C.CString(err.Error())
-	args.error_type = C.CString(fmt.Sprintf("%s", reflect.TypeOf(err)))
+	args.error_type = C.CString(reflect.TypeOf(err).String())
 	args.backtrace = C.CString(err.Backtrace())
 
 	return args
