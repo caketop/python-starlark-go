@@ -1,0 +1,3 @@
+[tool.isort]
+profile = "black"
+lines_between_types = 1
