@@ -7,6 +7,7 @@ package main
 import "C"
 
 import (
+	"errors"
 	"math/rand"
 	"reflect"
 	"unsafe"
@@ -18,8 +19,7 @@ import (
 var THREADS = map[uint64]*starlark.Thread{}
 var GLOBALS = map[uint64]starlark.StringDict{}
 
-//export NewThread
-func NewThread() C.ulong {
+func newThread() C.ulong {
 	threadId := rand.Uint64()
 	thread := &starlark.Thread{}
 	THREADS[threadId] = thread
@@ -27,143 +27,118 @@ func NewThread() C.ulong {
 	return C.ulong(threadId)
 }
 
-//export DestroyThread
-func DestroyThread(threadId C.ulong) {
+func destroyThread(threadId C.ulong) {
 	goThreadId := uint64(threadId)
 	delete(THREADS, goThreadId)
 	delete(GLOBALS, goThreadId)
 }
 
-func makeStarlarkErrorArgs(err error) *C.StarlarkErrorArgs {
-	args := (*C.StarlarkErrorArgs)(C.malloc(C.sizeof_StarlarkErrorArgs))
-	args.error = C.CString(err.Error())
-	args.error_type = C.CString(reflect.TypeOf(err).String())
+func raisePythonException(err error) {
+	var exc_args *C.PyObject
+	var exc_type *C.PyObject
+	var syntaxErr syntax.Error
+	var evalErr *starlark.EvalError = nil
 
-	return args
-}
+	error_msg := C.CString(err.Error())
+	defer C.free(unsafe.Pointer(error_msg))
 
-func makeSyntaxErrorArgs(err *syntax.Error) *C.SyntaxErrorArgs {
-	args := (*C.SyntaxErrorArgs)(C.malloc(C.sizeof_SyntaxErrorArgs))
-	args.error = C.CString(err.Error())
-	args.error_type = C.CString(reflect.TypeOf(err).String())
-	args.msg = C.CString(err.Msg)
-	args.filename = C.CString(err.Pos.Filename())
-	args.line = C.uint(err.Pos.Line)
-	args.column = C.uint(err.Pos.Col)
+	error_type := C.CString(reflect.TypeOf(err).String())
+	defer C.free(unsafe.Pointer(error_type))
 
-	return args
-}
+	switch {
+	case errors.As(err, &syntaxErr):
+		msg := C.CString(syntaxErr.Msg)
+		defer C.free(unsafe.Pointer(msg))
 
-func makeEvalErrorArgs(err *starlark.EvalError) *C.EvalErrorArgs {
-	args := (*C.EvalErrorArgs)(C.malloc(C.sizeof_EvalErrorArgs))
-	args.error = C.CString(err.Error())
-	args.error_type = C.CString(reflect.TypeOf(err).String())
-	args.backtrace = C.CString(err.Backtrace())
+		filename := C.CString(syntaxErr.Pos.Filename())
+		defer C.free(unsafe.Pointer(filename))
 
-	return args
-}
+		line := C.uint(syntaxErr.Pos.Line)
+		column := C.uint(syntaxErr.Pos.Col)
 
-func makeStarlarkReturn(err error) *C.StarlarkReturn {
-	retval := (*C.StarlarkReturn)(C.malloc(C.sizeof_StarlarkReturn))
-	retval.value = nil
+		exc_args = C.CgoSyntaxErrorArgs(error_msg, error_type, msg, filename, line, column)
+		exc_type = C.SyntaxError
+	case errors.As(err, &evalErr):
+		backtrace := C.CString(evalErr.Backtrace())
+		defer C.free(unsafe.Pointer(backtrace))
 
-	if err != nil {
-		syntaxErr, ok := err.(syntax.Error)
-		if ok {
-			retval.error_type = C.STARLARK_SYNTAX_ERROR
-			retval.error = unsafe.Pointer(makeSyntaxErrorArgs(&syntaxErr))
-			return retval
-		}
-
-		evalErr, ok := err.(*starlark.EvalError)
-		if ok {
-			retval.error_type = C.STARLARK_EVAL_ERROR
-			retval.error = unsafe.Pointer(makeEvalErrorArgs(evalErr))
-			return retval
-		}
-
-		retval.error_type = C.STARLARK_GENERAL_ERROR
-		retval.error = unsafe.Pointer(makeStarlarkErrorArgs(err))
-		return retval
-	}
-
-	retval.error_type = C.STARLARK_NO_ERROR
-	retval.error = nil
-
-	return retval
-}
-
-//export FreeStarlarkReturn
-func FreeStarlarkReturn(retval *C.StarlarkReturn) {
-	switch retval.error_type {
-	case C.STARLARK_GENERAL_ERROR:
-		args := (*C.StarlarkErrorArgs)(retval.error)
-		C.free(unsafe.Pointer(args.error))
-		C.free(unsafe.Pointer(args.error_type))
-	case C.STARLARK_SYNTAX_ERROR:
-		args := (*C.SyntaxErrorArgs)(retval.error)
-		C.free(unsafe.Pointer(args.error))
-		C.free(unsafe.Pointer(args.error_type))
-		C.free(unsafe.Pointer(args.msg))
-		C.free(unsafe.Pointer(args.filename))
-	case C.STARLARK_EVAL_ERROR:
-		args := (*C.EvalErrorArgs)(retval.error)
-		C.free(unsafe.Pointer(args.error))
-		C.free(unsafe.Pointer(args.error_type))
-		C.free(unsafe.Pointer(args.backtrace))
-	case C.STARLARK_NO_ERROR:
-		if retval.error != nil {
-			panic("STARLARK_NO_ERROR but error is not nil")
-		}
+		exc_args = C.CgoEvalErrorArgs(error_msg, error_type, backtrace)
+		exc_type = C.EvalError
 	default:
-		panic("unknown error_type")
+		exc_args = C.CgoStarlarkErrorArgs(error_msg, error_type)
+		exc_type = C.StarlarkError
 	}
 
-	if retval.value != nil {
-		C.free(unsafe.Pointer(retval.value))
-	}
-
-	if retval.error != nil {
-		C.free(unsafe.Pointer(retval.error))
-	}
-
-	C.free(unsafe.Pointer(retval))
+	C.PyErr_SetObject(exc_type, exc_args)
+	C.CgoPyDecRef(exc_args)
 }
 
-//export Eval
-func Eval(threadId C.ulong, stmt *C.char) *C.StarlarkReturn {
-	// Cast *char to string
-	goStmt := C.GoString(stmt)
-	goThreadId := uint64(threadId)
+//export StarlarkGo_new
+func StarlarkGo_new(pytype *C.PyTypeObject, args *C.PyObject, kwargs *C.PyObject) *C.StarlarkGo {
+	self := C.CgoStarlarkGoAlloc(pytype)
+	if self != nil {
+		self.starlark_thread = newThread()
+	}
+	return self
+}
+
+//export StarlarkGo_dealloc
+func StarlarkGo_dealloc(self *C.StarlarkGo) {
+	destroyThread(self.starlark_thread)
+	C.CgoStarlarkGoDealloc(self)
+}
+
+//export StarlarkGo_eval
+func StarlarkGo_eval(self *C.StarlarkGo, args *C.PyObject) *C.PyObject {
+	stmt := C.CgoParseEvalArgs(args)
+	if stmt == nil {
+		return nil
+	}
+
+	defer C.CgoPyDecRef(stmt)
+
+	goStmt := C.GoString(C.PyBytes_AsString(stmt))
+	goThreadId := uint64(self.starlark_thread)
 
 	thread := THREADS[goThreadId]
 	globals := GLOBALS[goThreadId]
 
 	result, err := starlark.Eval(thread, "<expr>", goStmt, globals)
-	retval := makeStarlarkReturn(err)
-
-	if err == nil {
-		retval.value = C.CString(result.String())
+	if err != nil {
+		raisePythonException(err)
+		return nil
 	}
+
+	cstr := C.CString(result.String())
+	retval := C.CgoPyString(cstr)
+	C.free(unsafe.Pointer(cstr))
 
 	return retval
 }
 
-//export ExecFile
-func ExecFile(threadId C.ulong, data *C.char) *C.StarlarkReturn {
-	// Cast *char to string
-	goData := C.GoString(data)
-	goThreadId := uint64(threadId)
-
-	thread := THREADS[goThreadId]
-	globals, err := starlark.ExecFile(thread, "main.star", goData, starlark.StringDict{})
-	retval := makeStarlarkReturn(err)
-
-	if err == nil {
-		GLOBALS[goThreadId] = globals
+//export StarlarkGo_exec
+func StarlarkGo_exec(self *C.StarlarkGo, args *C.PyObject) *C.PyObject {
+	stmt := C.CgoParseEvalArgs(args)
+	if stmt == nil {
+		return nil
 	}
 
-	return retval
+	defer C.CgoPyDecRef(stmt)
+
+	goStmt := C.GoString(C.PyBytes_AsString(stmt))
+	goThreadId := uint64(self.starlark_thread)
+
+	thread := THREADS[goThreadId]
+	globals, err := starlark.ExecFile(thread, "main.star", goStmt, starlark.StringDict{})
+
+	if err != nil {
+		raisePythonException(err)
+		return nil
+	}
+
+	GLOBALS[goThreadId] = globals
+
+	return C.CgoPyNone()
 }
 
 func main() {}
