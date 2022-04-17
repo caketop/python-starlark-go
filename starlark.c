@@ -1,5 +1,10 @@
 #include "starlark.h"
 
+/* Exceptions - the module init function will replace these */
+PyObject *StarlarkError;
+PyObject *SyntaxError;
+PyObject *EvalError;
+
 /* This stuff is in the Go file */
 StarlarkGo *StarlarkGo_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 static void StarlarkGo_dealloc(StarlarkGo *self);
@@ -49,6 +54,7 @@ PyObject *CgoParseEvalArgs(PyObject *args) {
   return PyUnicode_AsUTF8String(obj);
 }
 
+/* StarlarkGo methods */
 static PyMethodDef StarlarkGo_methods[] = {
     {"eval", (PyCFunction)StarlarkGo_eval, METH_VARARGS,
      "Evaluate a Starlark expression"},
@@ -57,7 +63,7 @@ static PyMethodDef StarlarkGo_methods[] = {
     {NULL} /* Sentinel */
 };
 
-/* Starlark object type */
+/* StarlarkGo type */
 static PyTypeObject StarlarkGoType = {
     PyVarObject_HEAD_INIT(NULL, 0) // this confuses clang-format
         .tp_name = "pystarlark._lib.StarlarkGo",

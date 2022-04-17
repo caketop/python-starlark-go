@@ -3,6 +3,10 @@ package main
 /*
 #include <stdlib.h>
 #include <starlark.h>
+
+extern PyObject *StarlarkError;
+extern PyObject *SyntaxError;
+extern PyObject *EvalError;
 */
 import "C"
 
