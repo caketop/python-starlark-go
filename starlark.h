@@ -1,32 +1,37 @@
-typedef struct StarlarkErrorArgs {
-  char *error;
-  char *error_type;
-} StarlarkErrorArgs;
+#ifndef PYTHON_STARLARK_GO_H
+#define PYTHON_STARLARK_GO_H
 
-typedef struct SyntaxErrorArgs {
-  char *error;
-  char *error_type;
-  char *msg;
-  char *filename;
-  unsigned int line;
-  unsigned int column;
-} SyntaxErrorArgs;
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
 
-typedef struct EvalErrorArgs {
-  char *error;
-  char *error_type;
-  char *backtrace;
-} EvalErrorArgs;
+/* Starlark object */
+typedef struct StarlarkGo {
+  PyObject_HEAD unsigned long starlark_thread;
+} StarlarkGo;
 
-typedef enum StarlarkErrorType {
-  STARLARK_NO_ERROR = 0,
-  STARLARK_GENERAL_ERROR = 1,
-  STARLARK_SYNTAX_ERROR = 2,
-  STARLARK_EVAL_ERROR = 3
-} StarlarkErrorType;
+/* Helpers for Cgo, which can't handle varargs or macros */
+StarlarkGo *CgoStarlarkGoAlloc(PyTypeObject *type);
 
-typedef struct StarlarkReturn {
-  char *value;
-  StarlarkErrorType error_type;
-  void *error;
-} StarlarkReturn;
+void CgoStarlarkGoDealloc(StarlarkGo *self);
+
+PyObject *CgoStarlarkErrorArgs(const char *error_msg, const char *error_type);
+
+PyObject *CgoSyntaxErrorArgs(const char *error_msg, const char *error_type,
+                             const char *msg, const char *filename,
+                             const unsigned int line,
+                             const unsigned int column);
+
+PyObject *CgoEvalErrorArgs(const char *error_msg, const char *error_type,
+                           const char *backtrace);
+
+void CgoPyDecRef(PyObject *obj);
+
+PyObject *CgoPyString(const char *s);
+
+PyObject *CgoPyNone();
+
+PyObject *CgoParseEvalArgs(PyObject *args);
+
+PyTypeObject *CgoPyType(PyObject *obj);
+
+#endif /* PYTHON_STARLARK_GO_H */
