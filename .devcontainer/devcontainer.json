@@ -18,7 +18,11 @@
     "[c]": {
       "editor.defaultFormatter": "ms-vscode.cpptools"
     },
-    "editor.formatOnSave": true
+    "editor.formatOnSave": true,
+    "go.lintTool": "golangci-lint",
+    "gopls": {
+      "formatting.gofumpt": true
+    },
   },
   "extensions": [
     "bierner.github-markdown-preview",
