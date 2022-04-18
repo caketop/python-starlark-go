@@ -128,11 +128,6 @@ PyObject *CgoPyNone() {
   Py_RETURN_NONE;
 }
 
-PyTypeObject *CgoPyType(PyObject *obj) {
-  /* Necessary because Cgo can't do macros */
-  return Py_TYPE(obj);
-}
-
 /* Helper to fetch exception classes */
 static PyObject *get_exception_class(PyObject *errors, const char *name) {
   PyObject *retval = PyObject_GetAttrString(errors, name);

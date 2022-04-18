@@ -39,6 +39,4 @@ int CgoParseEvalArgs(PyObject *args, PyObject *kwargs, char **expr,
 int GgoParseExecArgs(PyObject *args, PyObject *kwargs, char **defs,
                      char **filename);
 
-PyTypeObject *CgoPyType(PyObject *obj);
-
 #endif /* PYTHON_STARLARK_GO_H */

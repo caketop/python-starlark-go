@@ -75,7 +75,6 @@ func raisePythonException(err error) {
 			defer C.free(unsafe.Pointer(msg))
 
 			C.PyTuple_SetItem(items, C.Py_ssize_t(i), C.CgoResolveErrorItem(msg, C.uint(err.Pos.Line), C.uint(err.Pos.Col)))
-			// C.CgoPyTuple_SET_ITEM(items, C.Py_ssize_t(i), C.CgoResolveErrorItem(msg, C.uint(err.Pos.Line), C.uint(err.Pos.Col)))
 		}
 
 		exc_args = C.CgoResolveErrorArgs(error_msg, error_type, items)
