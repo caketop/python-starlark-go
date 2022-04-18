@@ -20,28 +20,18 @@ import (
 	"go.starlark.net/syntax"
 )
 
-var THREADS = map[uint64]*starlark.Thread{}
-var GLOBALS = map[uint64]starlark.StringDict{}
-
-func newThread() C.ulong {
-	threadId := rand.Uint64()
-	thread := &starlark.Thread{}
-	THREADS[threadId] = thread
-	GLOBALS[threadId] = starlark.StringDict{}
-	return C.ulong(threadId)
-}
-
-func destroyThread(threadId C.ulong) {
-	goThreadId := uint64(threadId)
-	delete(THREADS, goThreadId)
-	delete(GLOBALS, goThreadId)
-}
+var (
+	THREADS = map[uint64]*starlark.Thread{}
+	GLOBALS = map[uint64]starlark.StringDict{}
+)
 
 func raisePythonException(err error) {
-	var exc_args *C.PyObject
-	var exc_type *C.PyObject
-	var syntaxErr syntax.Error
-	var evalErr *starlark.EvalError = nil
+	var (
+		exc_args  *C.PyObject
+		exc_type  *C.PyObject
+		syntaxErr syntax.Error
+		evalErr   *starlark.EvalError
+	)
 
 	error_msg := C.CString(err.Error())
 	defer C.free(unsafe.Pointer(error_msg))
@@ -80,68 +70,93 @@ func raisePythonException(err error) {
 //export StarlarkGo_new
 func StarlarkGo_new(pytype *C.PyTypeObject, args *C.PyObject, kwargs *C.PyObject) *C.StarlarkGo {
 	self := C.CgoStarlarkGoAlloc(pytype)
-	if self != nil {
-		self.starlark_thread = newThread()
+	if self == nil {
+		return nil
 	}
+
+	threadId := rand.Uint64()
+	thread := &starlark.Thread{}
+	THREADS[threadId] = thread
+	GLOBALS[threadId] = starlark.StringDict{}
+
+	self.starlark_thread = C.ulong(threadId)
 	return self
 }
 
 //export StarlarkGo_dealloc
 func StarlarkGo_dealloc(self *C.StarlarkGo) {
-	destroyThread(self.starlark_thread)
+	threadId := uint64(self.starlark_thread)
+	delete(THREADS, threadId)
+	delete(GLOBALS, threadId)
+
 	C.CgoStarlarkGoDealloc(self)
 }
 
 //export StarlarkGo_eval
-func StarlarkGo_eval(self *C.StarlarkGo, args *C.PyObject) *C.PyObject {
-	stmt := C.CgoParseEvalArgs(args)
-	if stmt == nil {
+func StarlarkGo_eval(self *C.StarlarkGo, args *C.PyObject, kwargs *C.PyObject) *C.PyObject {
+	var (
+		expr       *C.char
+		filename   *C.char = nil
+		parse      C.uint  = 1
+		goFilename string  = "<expr>"
+	)
+
+	if C.CgoParseEvalArgs(args, kwargs, &expr, &filename, &parse) == 0 {
 		return nil
 	}
 
-	defer C.CgoPyDecRef(stmt)
+	goExpr := C.GoString(expr)
 
-	goStmt := C.GoString(C.PyBytes_AsString(stmt))
-	goThreadId := uint64(self.starlark_thread)
+	if filename != nil {
+		goFilename = C.GoString(filename)
+	}
 
-	thread := THREADS[goThreadId]
-	globals := GLOBALS[goThreadId]
+	threadId := uint64(self.starlark_thread)
+	thread := THREADS[threadId]
+	globals := GLOBALS[threadId]
 
-	result, err := starlark.Eval(thread, "<expr>", goStmt, globals)
+	result, err := starlark.Eval(thread, goFilename, goExpr, globals)
 	if err != nil {
 		raisePythonException(err)
 		return nil
 	}
 
 	cstr := C.CString(result.String())
-	retval := C.CgoPyString(cstr)
-	C.free(unsafe.Pointer(cstr))
+	defer C.free(unsafe.Pointer(cstr))
+	fmt := C.CString("U")
+	defer C.free(unsafe.Pointer(fmt))
 
-	return retval
+	return C.CgoPyBuildOneValue(fmt, unsafe.Pointer(cstr))
 }
 
 //export StarlarkGo_exec
-func StarlarkGo_exec(self *C.StarlarkGo, args *C.PyObject) *C.PyObject {
-	stmt := C.CgoParseEvalArgs(args)
-	if stmt == nil {
+func StarlarkGo_exec(self *C.StarlarkGo, args *C.PyObject, kwargs *C.PyObject) *C.PyObject {
+	var (
+		defs       *C.char
+		filename   *C.char = nil
+		goFilename string  = "<expr>"
+	)
+
+	if C.GgoParseExecArgs(args, kwargs, &defs, &filename) == 0 {
 		return nil
 	}
 
-	defer C.CgoPyDecRef(stmt)
+	goDefs := C.GoString(defs)
 
-	goStmt := C.GoString(C.PyBytes_AsString(stmt))
-	goThreadId := uint64(self.starlark_thread)
+	if filename != nil {
+		goFilename = C.GoString(filename)
+	}
 
-	thread := THREADS[goThreadId]
-	globals, err := starlark.ExecFile(thread, "main.star", goStmt, starlark.StringDict{})
+	threadId := uint64(self.starlark_thread)
+	thread := THREADS[threadId]
 
+	globals, err := starlark.ExecFile(thread, goFilename, goDefs, GLOBALS[threadId])
 	if err != nil {
 		raisePythonException(err)
 		return nil
 	}
 
-	GLOBALS[goThreadId] = globals
-
+	GLOBALS[threadId] = globals
 	return C.CgoPyNone()
 }
 

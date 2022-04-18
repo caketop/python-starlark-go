@@ -26,11 +26,15 @@ PyObject *CgoEvalErrorArgs(const char *error_msg, const char *error_type,
 
 void CgoPyDecRef(PyObject *obj);
 
-PyObject *CgoPyString(const char *s);
+PyObject *CgoPyBuildOneValue(const char *fmt, const void *src);
 
 PyObject *CgoPyNone();
 
-PyObject *CgoParseEvalArgs(PyObject *args);
+int CgoParseEvalArgs(PyObject *args, PyObject *kwargs, char **expr,
+                     char **filename, unsigned int *parse);
+
+int GgoParseExecArgs(PyObject *args, PyObject *kwargs, char **defs,
+                     char **filename);
 
 PyTypeObject *CgoPyType(PyObject *obj);
 
