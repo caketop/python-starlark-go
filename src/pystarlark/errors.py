@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Tuple
 
 __all__ = ["StarlarkError", "SyntaxError", "EvalError"]
 
@@ -34,3 +34,18 @@ class EvalError(StarlarkError):
     def __init__(self, error: str, error_type: str, backtrace: str):
         super().__init__(error, error_type, backtrace)
         self.backtrace = backtrace
+
+
+class ResolveErrorItem:
+    def __init__(self, msg: str, line: int, column: int):
+        self.msg = msg
+        self.line = line
+        self.column = column
+
+
+class ResolveError(StarlarkError):
+    def __init__(
+        self, error: str, error_type: str, errors: Tuple[ResolveErrorItem, ...]
+    ):
+        super().__init__(error, error_type)
+        self.errors = list(errors)

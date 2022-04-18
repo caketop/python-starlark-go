@@ -7,6 +7,10 @@ package main
 extern PyObject *StarlarkError;
 extern PyObject *SyntaxError;
 extern PyObject *EvalError;
+extern PyObject *ResolveError;
+
+extern const char *buildStr;
+extern const char *buildUint;
 */
 import "C"
 
@@ -16,6 +20,7 @@ import (
 	"reflect"
 	"unsafe"
 
+	"go.starlark.net/resolve"
 	"go.starlark.net/starlark"
 	"go.starlark.net/syntax"
 )
@@ -27,10 +32,11 @@ var (
 
 func raisePythonException(err error) {
 	var (
-		exc_args  *C.PyObject
-		exc_type  *C.PyObject
-		syntaxErr syntax.Error
-		evalErr   *starlark.EvalError
+		exc_args   *C.PyObject
+		exc_type   *C.PyObject
+		syntaxErr  syntax.Error
+		evalErr    *starlark.EvalError
+		resolveErr resolve.ErrorList
 	)
 
 	error_msg := C.CString(err.Error())
@@ -58,6 +64,19 @@ func raisePythonException(err error) {
 
 		exc_args = C.CgoEvalErrorArgs(error_msg, error_type, backtrace)
 		exc_type = C.EvalError
+	case errors.As(err, &resolveErr):
+		items := C.PyTuple_New(C.Py_ssize_t(len(resolveErr)))
+		defer C.CgoPyDecRef(items)
+
+		for i, err := range resolveErr {
+			msg := C.CString(err.Msg)
+			defer C.free(unsafe.Pointer(msg))
+
+			C.CgoPyTuple_SET_ITEM(items, C.Py_ssize_t(i), C.CgoResolveErrorItem(msg, C.uint(err.Pos.Line), C.uint(err.Pos.Col)))
+		}
+
+		exc_args = C.CgoResolveErrorArgs(error_msg, error_type, items)
+		exc_type = C.ResolveError
 	default:
 		exc_args = C.CgoStarlarkErrorArgs(error_msg, error_type)
 		exc_type = C.StarlarkError
@@ -123,10 +142,8 @@ func StarlarkGo_eval(self *C.StarlarkGo, args *C.PyObject, kwargs *C.PyObject) *
 
 	cstr := C.CString(result.String())
 	defer C.free(unsafe.Pointer(cstr))
-	fmt := C.CString("U")
-	defer C.free(unsafe.Pointer(fmt))
 
-	return C.CgoPyBuildOneValue(fmt, unsafe.Pointer(cstr))
+	return C.CgoPyBuildOneValue(C.buildStr, unsafe.Pointer(cstr))
 }
 
 //export StarlarkGo_exec

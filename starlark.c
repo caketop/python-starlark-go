@@ -4,10 +4,16 @@
 PyObject *StarlarkError;
 PyObject *SyntaxError;
 PyObject *EvalError;
+PyObject *ResolveError;
+PyObject *ResolveErrorItem;
+
+/* For use with CgoPyBuildOneValue */
+const char *buildStr = "s";
+const char *buildUint = "I";
 
 /* Argument names for our methods */
-static const char *eval_keywords[] = {"expr", "filename", "parse"};
-static const char *exec_keywords[] = {"defs", "filename"};
+static char *eval_keywords[] = {"expr", "filename", "parse", NULL};
+static char *exec_keywords[] = {"defs", "filename", NULL};
 
 /* Helpers to parse method arguments */
 int CgoParseEvalArgs(PyObject *args, PyObject *kwargs, char **expr,
@@ -24,7 +30,7 @@ int GgoParseExecArgs(PyObject *args, PyObject *kwargs, char **defs,
 
 /* This stuff is in the Go file */
 StarlarkGo *StarlarkGo_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
-static void StarlarkGo_dealloc(StarlarkGo *self);
+void StarlarkGo_dealloc(StarlarkGo *self);
 PyObject *StarlarkGo_eval(StarlarkGo *self, PyObject *args);
 PyObject *StarlarkGo_exec(StarlarkGo *self, PyObject *args);
 
@@ -75,6 +81,21 @@ PyObject *CgoEvalErrorArgs(const char *error_msg, const char *error_type,
   return Py_BuildValue("sss", error_msg, error_type, backtrace);
 }
 
+PyObject *CgoResolveErrorItem(const char *msg, const unsigned int line,
+                              const unsigned int column) {
+  PyObject *args = Py_BuildValue("sII", msg, line, column);
+  PyGILState_STATE gilstate = PyGILState_Ensure();
+  PyObject *obj = PyObject_CallObject(ResolveErrorItem, args);
+  PyGILState_Release(gilstate);
+  Py_XDECREF(args);
+
+  return obj;
+}
+
+PyObject *CgoResolveErrorArgs(const char *error_msg, const char *error_type,
+                              PyObject *errors) {
+  return Py_BuildValue("ssO", error_msg, error_type, errors);
+}
 /* Other assorted helpers for Cgo, which can't handle varargs or macros */
 StarlarkGo *CgoStarlarkGoAlloc(PyTypeObject *type) {
   return (StarlarkGo *)type->tp_alloc(type, 0);
@@ -94,6 +115,9 @@ PyObject *CgoPyNone() { Py_RETURN_NONE; }
 
 PyTypeObject *CgoPyType(PyObject *obj) { return Py_TYPE(obj); }
 
+void CgoPyTuple_SET_ITEM(PyObject *tuple, Py_ssize_t pos, PyObject *item) {
+  PyTuple_SET_ITEM(tuple, pos, item);
+}
 /* Helper to fetch exception classes */
 static PyObject *get_exception_class(PyObject *errors, const char *name) {
   PyObject *retval = PyObject_GetAttrString(errors, name);
@@ -121,6 +145,14 @@ PyMODINIT_FUNC PyInit__lib(void) {
 
   EvalError = get_exception_class(errors, "EvalError");
   if (EvalError == NULL)
+    return NULL;
+
+  ResolveError = get_exception_class(errors, "ResolveError");
+  if (ResolveError == NULL)
+    return NULL;
+
+  ResolveErrorItem = get_exception_class(errors, "ResolveErrorItem");
+  if (ResolveErrorItem == NULL)
     return NULL;
 
   PyObject *m;
