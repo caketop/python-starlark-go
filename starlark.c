@@ -18,12 +18,16 @@ static char *exec_keywords[] = {"defs", "filename", NULL};
 /* Helpers to parse method arguments */
 int CgoParseEvalArgs(PyObject *args, PyObject *kwargs, char **expr,
                      char **filename, unsigned int *parse) {
+  /* Necessary because Cgo can't do varargs */
+  /* One required string, folloed by an optional string and an optional bool */
   return PyArg_ParseTupleAndKeywords(args, kwargs, "s|$sp", eval_keywords, expr,
                                      filename, parse);
 }
 
 int GgoParseExecArgs(PyObject *args, PyObject *kwargs, char **defs,
                      char **filename) {
+  /* Necessary because Cgo can't do varargs */
+  /* One required string, folloed by an optional string */
   return PyArg_ParseTupleAndKeywords(args, kwargs, "s|$s", exec_keywords, defs,
                                      filename);
 }
@@ -65,6 +69,7 @@ static PyModuleDef pystarlark_lib = {
 
 /* Helpers for Cgo to build exception arguments */
 PyObject *CgoStarlarkErrorArgs(const char *error_msg, const char *error_type) {
+  /* Necessary because Cgo can't do varargs */
   return Py_BuildValue("ss", error_msg, error_type);
 }
 
@@ -72,52 +77,62 @@ PyObject *CgoSyntaxErrorArgs(const char *error_msg, const char *error_type,
                              const char *msg, const char *filename,
                              const unsigned int line,
                              const unsigned int column) {
+  /* Necessary because Cgo can't do varargs */
+  /* Four strings and two unsigned integers */
   return Py_BuildValue("ssssII", error_msg, error_type, msg, filename, line,
                        column);
 }
 
 PyObject *CgoEvalErrorArgs(const char *error_msg, const char *error_type,
                            const char *backtrace) {
+  /* Necessary because Cgo can't do varargs */
+  /* Three strings */
   return Py_BuildValue("sss", error_msg, error_type, backtrace);
 }
 
 PyObject *CgoResolveErrorItem(const char *msg, const unsigned int line,
                               const unsigned int column) {
+  /* Necessary because Cgo can't do varargs */
+  /* A string and two unsigned integers */
   PyObject *args = Py_BuildValue("sII", msg, line, column);
-  PyGILState_STATE gilstate = PyGILState_Ensure();
   PyObject *obj = PyObject_CallObject(ResolveErrorItem, args);
-  PyGILState_Release(gilstate);
-  Py_XDECREF(args);
-
+  Py_DECREF(args);
   return obj;
 }
 
 PyObject *CgoResolveErrorArgs(const char *error_msg, const char *error_type,
                               PyObject *errors) {
+  /* Necessary because Cgo can't do varargs */
+  /* Two strings and a Python object */
   return Py_BuildValue("ssO", error_msg, error_type, errors);
 }
-/* Other assorted helpers for Cgo, which can't handle varargs or macros */
+
+/* Other assorted helpers for Cgo */
 StarlarkGo *CgoStarlarkGoAlloc(PyTypeObject *type) {
+  /* Necessary because Cgo can't do function pointers */
   return (StarlarkGo *)type->tp_alloc(type, 0);
 }
 
 void CgoStarlarkGoDealloc(StarlarkGo *self) {
+  /* Necessary because Cgo can't do function pointers */
   Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
-void CgoPyDecRef(PyObject *obj) { Py_XDECREF(obj); }
-
 PyObject *CgoPyBuildOneValue(const char *fmt, const void *src) {
+  /* Necessary because Cgo can't do varargs */
   return Py_BuildValue(fmt, src);
 }
 
-PyObject *CgoPyNone() { Py_RETURN_NONE; }
-
-PyTypeObject *CgoPyType(PyObject *obj) { return Py_TYPE(obj); }
-
-void CgoPyTuple_SET_ITEM(PyObject *tuple, Py_ssize_t pos, PyObject *item) {
-  PyTuple_SET_ITEM(tuple, pos, item);
+PyObject *CgoPyNone() {
+  /* Necessary because Cgo can't do macros */
+  Py_RETURN_NONE;
 }
+
+PyTypeObject *CgoPyType(PyObject *obj) {
+  /* Necessary because Cgo can't do macros */
+  return Py_TYPE(obj);
+}
+
 /* Helper to fetch exception classes */
 static PyObject *get_exception_class(PyObject *errors, const char *name) {
   PyObject *retval = PyObject_GetAttrString(errors, name);
