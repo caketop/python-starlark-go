@@ -41,3 +41,33 @@ def test_syntaxerror_attrs():
         raised = True
 
     assert raised
+
+
+def test_syntaxerror_eval_filename():
+    s = Starlark()
+    raised = False
+
+    try:
+        s.eval(" 7 ", filename="whyd_you_park_your_car_so_far_from.star")
+    except SyntaxError as e:
+        assert hasattr(e, "filename")
+        assert isinstance(e.filename, str)
+        assert e.filename == "whyd_you_park_your_car_so_far_from.star"
+        raised = True
+
+    assert raised
+
+
+def test_syntaxerror_exec_filename():
+    s = Starlark()
+    raised = False
+
+    try:
+        s.exec(" 7 ", filename="whyd_you_park_your_car_so_far_from.star")
+    except SyntaxError as e:
+        assert hasattr(e, "filename")
+        assert isinstance(e.filename, str)
+        assert e.filename == "whyd_you_park_your_car_so_far_from.star"
+        raised = True
+
+    assert raised
