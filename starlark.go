@@ -18,6 +18,7 @@ import (
 	"errors"
 	"math/rand"
 	"reflect"
+	"sync"
 	"unsafe"
 
 	"go.starlark.net/resolve"
@@ -28,6 +29,7 @@ import (
 var (
 	THREADS = map[uint64]*starlark.Thread{}
 	GLOBALS = map[uint64]starlark.StringDict{}
+	MUTEXES = map[uint64]*sync.Mutex{}
 )
 
 func raisePythonException(err error) {
@@ -66,13 +68,13 @@ func raisePythonException(err error) {
 		exc_type = C.EvalError
 	case errors.As(err, &resolveErr):
 		items := C.PyTuple_New(C.Py_ssize_t(len(resolveErr)))
-		defer C.CgoPyDecRef(items)
+		defer C.Py_DecRef(items)
 
 		for i, err := range resolveErr {
 			msg := C.CString(err.Msg)
 			defer C.free(unsafe.Pointer(msg))
 
-			C.CgoPyTuple_SET_ITEM(items, C.Py_ssize_t(i), C.CgoResolveErrorItem(msg, C.uint(err.Pos.Line), C.uint(err.Pos.Col)))
+			C.PyTuple_SetItem(items, C.Py_ssize_t(i), C.CgoResolveErrorItem(msg, C.uint(err.Pos.Line), C.uint(err.Pos.Col)))
 		}
 
 		exc_args = C.CgoResolveErrorArgs(error_msg, error_type, items)
@@ -83,7 +85,7 @@ func raisePythonException(err error) {
 	}
 
 	C.PyErr_SetObject(exc_type, exc_args)
-	C.CgoPyDecRef(exc_args)
+	C.Py_DecRef(exc_args)
 }
 
 //export StarlarkGo_new
@@ -95,8 +97,10 @@ func StarlarkGo_new(pytype *C.PyTypeObject, args *C.PyObject, kwargs *C.PyObject
 
 	threadId := rand.Uint64()
 	thread := &starlark.Thread{}
+
 	THREADS[threadId] = thread
 	GLOBALS[threadId] = starlark.StringDict{}
+	MUTEXES[threadId] = &sync.Mutex{}
 
 	self.starlark_thread = C.ulong(threadId)
 	return self
@@ -105,8 +109,14 @@ func StarlarkGo_new(pytype *C.PyTypeObject, args *C.PyObject, kwargs *C.PyObject
 //export StarlarkGo_dealloc
 func StarlarkGo_dealloc(self *C.StarlarkGo) {
 	threadId := uint64(self.starlark_thread)
+	mutex := MUTEXES[threadId]
+
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	delete(THREADS, threadId)
 	delete(GLOBALS, threadId)
+	delete(MUTEXES, threadId)
 
 	C.CgoStarlarkGoDealloc(self)
 }
@@ -131,10 +141,17 @@ func StarlarkGo_eval(self *C.StarlarkGo, args *C.PyObject, kwargs *C.PyObject) *
 	}
 
 	threadId := uint64(self.starlark_thread)
+	mutex := MUTEXES[threadId]
+
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	thread := THREADS[threadId]
 	globals := GLOBALS[threadId]
-
+	pyThread := C.PyEval_SaveThread()
 	result, err := starlark.Eval(thread, goFilename, goExpr, globals)
+	C.PyEval_RestoreThread(pyThread)
+
 	if err != nil {
 		raisePythonException(err)
 		return nil
@@ -165,9 +182,16 @@ func StarlarkGo_exec(self *C.StarlarkGo, args *C.PyObject, kwargs *C.PyObject) *
 	}
 
 	threadId := uint64(self.starlark_thread)
-	thread := THREADS[threadId]
+	mutex := MUTEXES[threadId]
 
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	thread := THREADS[threadId]
+	pyThread := C.PyEval_SaveThread()
 	globals, err := starlark.ExecFile(thread, goFilename, goDefs, GLOBALS[threadId])
+	C.PyEval_RestoreThread(pyThread)
+
 	if err != nil {
 		raisePythonException(err)
 		return nil
