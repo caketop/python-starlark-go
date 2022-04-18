@@ -48,6 +48,7 @@ RUN go install github.com/fatih/gomodifytags@latest
 RUN go install github.com/haya14busa/goplay/cmd/goplay@latest
 RUN go install github.com/cweill/gotests/...@latest
 RUN go install honnef.co/go/tools/cmd/staticcheck@latest
+RUN go install mvdan.cc/gofumpt@latest
 RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.45.2
 
 
@@ -57,6 +58,6 @@ ARG USERNAME
 
 COPY --from=go_tools /home/${USERNAME}/go/bin/ /home/${USERNAME}/go/bin
 
-RUN python3.10 -m pip install --user black isort tox
+RUN python3.10 -m pip install --user black isort pytest tox
 
 ENV PATH=/home/${USERNAME}/go/bin:/home/${USERNAME}/.local/bin:$PATH
