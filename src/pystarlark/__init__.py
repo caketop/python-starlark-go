@@ -2,9 +2,9 @@ from ast import literal_eval
 from typing import Any, Optional
 
 from pystarlark._lib import StarlarkGo
-from pystarlark.errors import EvalError, StarlarkError, SyntaxError
+from pystarlark.errors import EvalError, ResolveError, StarlarkError, SyntaxError
 
-__all__ = ["Starlark", "StarlarkError", "EvalError", "SyntaxError"]
+__all__ = ["Starlark", "StarlarkError", "EvalError", "ResolveError", "SyntaxError"]
 __version__ = "0.0.2"
 
 
