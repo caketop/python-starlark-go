@@ -5,40 +5,39 @@
 #include <Python.h>
 
 /* Starlark object */
-typedef struct StarlarkGo {
+typedef struct Starlark {
   PyObject_HEAD unsigned long starlark_thread;
-} StarlarkGo;
+} Starlark;
 
 /* Helpers for Cgo, which can't handle varargs or macros */
-StarlarkGo *CgoStarlarkGoAlloc(PyTypeObject *type);
+Starlark *starlarkAlloc(PyTypeObject *type);
 
-void CgoStarlarkGoDealloc(StarlarkGo *self);
+void starlarkFree(Starlark *self);
 
-PyObject *CgoStarlarkErrorArgs(const char *error_msg, const char *error_type);
+int parseEvalArgs(PyObject *args, PyObject *kwargs, char **expr,
+                  char **filename, unsigned int *convert);
 
-PyObject *CgoSyntaxErrorArgs(const char *error_msg, const char *error_type,
-                             const char *msg, const char *filename,
-                             const unsigned int line,
-                             const unsigned int column);
+int parseExecArgs(PyObject *args, PyObject *kwargs, char **defs,
+                  char **filename);
 
-PyObject *CgoEvalErrorArgs(const char *error_msg, const char *error_type,
-                           const char *backtrace);
+PyObject *makeStarlarkErrorArgs(const char *error_msg, const char *error_type);
 
-PyObject *CgoResolveErrorItem(const char *msg, const unsigned int line,
+PyObject *makeSyntaxErrorArgs(const char *error_msg, const char *error_type,
+                              const char *msg, const char *filename,
+                              const unsigned int line,
                               const unsigned int column);
 
-PyObject *CgoResolveErrorArgs(const char *error_msg, const char *error_type,
-                              PyObject *errors);
-PyObject *CgoPyBuildOneValue(const char *fmt, const void *src);
+PyObject *makeEvalErrorArgs(const char *error_msg, const char *error_type,
+                            const char *backtrace);
 
-PyObject *CgoPyNone();
+PyObject *makeResolveErrorItem(const char *msg, const unsigned int line,
+                               const unsigned int column);
 
-PyObject *CgoPyNewRef(PyObject *obj);
+PyObject *makeResolveErrorArgs(const char *error_msg, const char *error_type,
+                               PyObject *errors);
 
-int CgoParseEvalArgs(PyObject *args, PyObject *kwargs, char **expr,
-                     char **filename, unsigned int *parse);
+PyObject *cgoPy_BuildString(const char *src);
 
-int GgoParseExecArgs(PyObject *args, PyObject *kwargs, char **defs,
-                     char **filename);
+PyObject *cgoPy_NewRef(PyObject *obj);
 
 #endif /* PYTHON_STARLARK_GO_H */
