@@ -33,6 +33,8 @@ PyObject *CgoPyBuildOneValue(const char *fmt, const void *src);
 
 PyObject *CgoPyNone();
 
+PyObject *CgoPyNewRef(PyObject *obj);
+
 int CgoParseEvalArgs(PyObject *args, PyObject *kwargs, char **expr,
                      char **filename, unsigned int *parse);
 

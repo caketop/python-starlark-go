@@ -6,8 +6,10 @@ PyObject *SyntaxError;
 PyObject *EvalError;
 PyObject *ResolveError;
 PyObject *ResolveErrorItem;
+PyObject *ConversionError;
 
 /* For use with CgoPyBuildOneValue */
+const char *buildBool = "p";
 const char *buildStr = "s";
 const char *buildUint = "I";
 
@@ -128,6 +130,14 @@ PyObject *CgoPyNone() {
   Py_RETURN_NONE;
 }
 
+PyObject *CgoPyNewRef(PyObject *obj) {
+  /* Necessary because Cgo can't do macros and Py_NewRef is part of
+   * Python's "stable API" but only since 3.10
+   */
+  Py_INCREF(obj);
+  return obj;
+}
+
 /* Helper to fetch exception classes */
 static PyObject *get_exception_class(PyObject *errors, const char *name) {
   PyObject *retval = PyObject_GetAttrString(errors, name);
@@ -163,6 +173,10 @@ PyMODINIT_FUNC PyInit__lib(void) {
 
   ResolveErrorItem = get_exception_class(errors, "ResolveErrorItem");
   if (ResolveErrorItem == NULL)
+    return NULL;
+
+  ConversionError = get_exception_class(errors, "ConversionError");
+  if (ConversionError == NULL)
     return NULL;
 
   PyObject *m;
