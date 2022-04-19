@@ -16,6 +16,11 @@ def test_parse_int():
     assert isinstance(x, str)
     assert x == "7"
 
+    # too big to fit in 64 bits
+    x = s.eval("10000000000000000000")
+    assert isinstance(x, int)
+    assert x == 10000000000000000000
+
 
 def test_parse_float():
     s = Starlark()
@@ -110,3 +115,48 @@ def test_parse_dict():
     assert isinstance(x, str)
     assert x.startswith("{")
     assert x.endswith("}")
+
+
+def test_parse_set():
+    s = Starlark()
+
+    x = s.eval("set((1, 2, 3))")
+    assert isinstance(x, set)
+    assert x == set((1, 2, 3))
+
+    x = s.eval("set((1, 2, 3))", parse=True)
+    assert isinstance(x, set)
+    assert x == set((1, 2, 3))
+
+    x = s.eval("set((1, 2, 3))", parse=False)
+    assert isinstance(x, str)
+
+
+def test_parse_bytes():
+    s = Starlark()
+
+    x = s.eval("b'dead0000beef'")
+    assert isinstance(x, bytes)
+    assert x == b"dead0000beef"
+
+    x = s.eval("b'dead0000beef'", parse=True)
+    assert isinstance(x, bytes)
+    assert x == b"dead0000beef"
+
+    x = s.eval("b'dead0000beef'", parse=False)
+    assert isinstance(x, str)
+
+
+def test_tuple():
+    s = Starlark()
+
+    x = s.eval("(13, 37)")
+    assert isinstance(x, tuple)
+    assert x == (13, 37)
+
+    x = s.eval("(13, 37)", parse=True)
+    assert isinstance(x, tuple)
+    assert x == (13, 37)
+
+    x = s.eval("(13, 37)", parse=False)
+    assert isinstance(x, str)

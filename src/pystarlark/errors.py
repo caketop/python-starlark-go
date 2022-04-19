@@ -1,13 +1,13 @@
-from typing import Any, Tuple
+from typing import Any, Optional, Tuple
 
 __all__ = ["StarlarkError", "SyntaxError", "EvalError"]
 
 
 class StarlarkError(Exception):
-    def __init__(self, error: str, error_type: str, *extra_args: Any):
+    def __init__(self, error: str, error_type: Optional[str] = None, *extra_args: Any):
         super().__init__(error, error_type, *extra_args)
         self.error = error
-        self.error_type = error_type
+        self.error_type = self.__class__.__name__ if error_type is None else error_type
 
     def __str__(self) -> str:
         return self.error
@@ -47,5 +47,9 @@ class ResolveError(StarlarkError):
     def __init__(
         self, error: str, error_type: str, errors: Tuple[ResolveErrorItem, ...]
     ):
-        super().__init__(error, error_type)
+        super().__init__(error, error_type, errors)
         self.errors = list(errors)
+
+
+class ConversionError(StarlarkError):
+    pass
