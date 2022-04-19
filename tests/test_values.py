@@ -1,18 +1,18 @@
 from pystarlark import Starlark
 
 
-def test_parse_int():
+def test_int():
     s = Starlark()
 
     x = s.eval("7")
     assert isinstance(x, int)
     assert x == 7
 
-    x = s.eval("7", parse=True)
+    x = s.eval("7", convert=True)
     assert isinstance(x, int)
     assert x == 7
 
-    x = s.eval("7", parse=False)
+    x = s.eval("7", convert=False)
     assert isinstance(x, str)
     assert x == "7"
 
@@ -22,129 +22,132 @@ def test_parse_int():
     assert x == 10000000000000000000
 
 
-def test_parse_float():
+def test_float():
     s = Starlark()
 
     x = s.eval("7.7")
     assert isinstance(x, float)
     assert x == 7.7
 
-    x = s.eval("7.7", parse=True)
+    x = s.eval("7.7", convert=True)
     assert isinstance(x, float)
     assert x == 7.7
 
-    x = s.eval("7.7", parse=False)
+    x = s.eval("7.7", convert=False)
     assert isinstance(x, str)
     assert x == "7.7"
 
 
-def test_parse_bool():
+def test_bool():
     s = Starlark()
 
     x = s.eval("True")
     assert isinstance(x, bool)
     assert x is True
 
-    x = s.eval("True", parse=True)
+    x = s.eval("True", convert=True)
     assert isinstance(x, bool)
     assert x is True
 
-    x = s.eval("True", parse=False)
+    x = s.eval("True", convert=False)
     assert isinstance(x, str)
     assert x == "True"
 
 
-def test_parse_none():
+def test_none():
     s = Starlark()
 
     x = s.eval("None")
     assert x is None
 
-    x = s.eval("None", parse=True)
+    x = s.eval("None", convert=True)
     assert x is None
 
-    x = s.eval("None", parse=False)
+    x = s.eval("None", convert=False)
     assert isinstance(x, str)
     assert x == "None"
 
 
-def test_parse_str():
+def test_str():
     s = Starlark()
 
     x = s.eval('"True"')
     assert isinstance(x, str)
     assert x == "True"
 
-    x = s.eval('"True"', parse=True)
+    x = s.eval('"True"', convert=True)
     assert isinstance(x, str)
     assert x == "True"
 
-    x = s.eval('"True"', parse=False)
+    x = s.eval('"True"', convert=False)
     assert isinstance(x, str)
     assert x == '"True"'
 
 
-def test_parse_list():
+def test_list():
     s = Starlark()
 
     x = s.eval('[4, 2, 0, "go"]')
     assert isinstance(x, list)
     assert x == [4, 2, 0, "go"]
 
-    x = s.eval('[4, 2, 0, "go"]', parse=True)
+    x = s.eval('[4, 2, 0, "go"]', convert=True)
     assert isinstance(x, list)
     assert x == [4, 2, 0, "go"]
 
-    x = s.eval('[4, 2, 0, "go"]', parse=False)
+    x = s.eval('[4, 2, 0, "go"]', convert=False)
     assert isinstance(x, str)
     assert x == '[4, 2, 0, "go"]'
 
 
-def test_parse_dict():
+def test_dict():
     s = Starlark()
 
     x = s.eval('{"lamb": "little", "pickles": 3}')
     assert isinstance(x, dict)
     assert x == {"lamb": "little", "pickles": 3}
 
-    x = s.eval('{"lamb": "little", "pickles": 3}', parse=True)
+    x = s.eval('{"lamb": "little", "pickles": 3}', convert=True)
     assert isinstance(x, dict)
     assert x == {"lamb": "little", "pickles": 3}
 
-    x = s.eval('{"lamb": "little", "pickles": 3}', parse=False)
+    x = s.eval('{"lamb": "little", "pickles": 3}', convert=False)
     assert isinstance(x, str)
     assert x.startswith("{")
     assert x.endswith("}")
 
 
-def test_parse_set():
+def test_set():
     s = Starlark()
 
     x = s.eval("set((1, 2, 3))")
     assert isinstance(x, set)
     assert x == set((1, 2, 3))
 
-    x = s.eval("set((1, 2, 3))", parse=True)
+    x = s.eval("set((1, 2, 3))", convert=True)
     assert isinstance(x, set)
     assert x == set((1, 2, 3))
 
-    x = s.eval("set((1, 2, 3))", parse=False)
+    x = s.eval("set((1, 2, 3))", convert=False)
     assert isinstance(x, str)
+    assert x.startswith("set(")
+    assert x.endswith(")")
 
 
-def test_parse_bytes():
+def test_bytes():
     s = Starlark()
 
     x = s.eval("b'dead0000beef'")
     assert isinstance(x, bytes)
     assert x == b"dead0000beef"
 
-    x = s.eval("b'dead0000beef'", parse=True)
+    x = s.eval("b'dead0000beef'", convert=True)
     assert isinstance(x, bytes)
     assert x == b"dead0000beef"
 
-    x = s.eval("b'dead0000beef'", parse=False)
+    x = s.eval("b'dead0000beef'", convert=False)
     assert isinstance(x, str)
+    assert x == 'b"dead0000beef"'
 
 
 def test_tuple():
@@ -154,9 +157,10 @@ def test_tuple():
     assert isinstance(x, tuple)
     assert x == (13, 37)
 
-    x = s.eval("(13, 37)", parse=True)
+    x = s.eval("(13, 37)", convert=True)
     assert isinstance(x, tuple)
     assert x == (13, 37)
 
-    x = s.eval("(13, 37)", parse=False)
+    x = s.eval("(13, 37)", convert=False)
     assert isinstance(x, str)
+    assert x == "(13, 37)"

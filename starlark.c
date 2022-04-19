@@ -1,5 +1,11 @@
 #include "starlark.h"
 
+/* Declarations for object methods written in Go */
+Starlark *Starlark_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
+void Starlark_dealloc(Starlark *self);
+PyObject *Starlark_eval(Starlark *self, PyObject *args);
+PyObject *Starlark_exec(Starlark *self, PyObject *args);
+
 /* Exceptions - the module init function will fill these in */
 PyObject *StarlarkError;
 PyObject *SyntaxError;
@@ -8,92 +14,92 @@ PyObject *ResolveError;
 PyObject *ResolveErrorItem;
 PyObject *ConversionError;
 
-/* For use with CgoPyBuildOneValue */
-const char *buildBool = "p";
-const char *buildStr = "s";
-const char *buildUint = "I";
+/* Container for object methods */
+static PyMethodDef StarlarkGo_methods[] = {
+    {"eval", (PyCFunction)Starlark_eval, METH_VARARGS | METH_KEYWORDS,
+     "Evaluate a Starlark expression"},
+    {"exec", (PyCFunction)Starlark_exec, METH_VARARGS | METH_KEYWORDS,
+     "Execute Starlark code, modifying the global state"},
+    {NULL} /* Sentinel */
+};
+
+/* Python type for object */
+static PyTypeObject StarlarkType = {
+    PyVarObject_HEAD_INIT(NULL, 0) // this confuses clang-format
+        .tp_name = "pystarlark.starlark_go.Starlark",
+    .tp_doc = "Starlark interpreter",
+    .tp_basicsize = sizeof(Starlark),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    .tp_new = (newfunc)Starlark_new,
+    .tp_dealloc = (destructor)Starlark_dealloc,
+    .tp_methods = StarlarkGo_methods};
+
+/* Module */
+static PyModuleDef pystarlark_lib = {
+    PyModuleDef_HEAD_INIT,
+    .m_name = "pystarlark.starlark_go",
+    .m_doc = "Interface to starlark-go",
+    .m_size = -1,
+};
 
 /* Argument names for our methods */
-static char *eval_keywords[] = {"expr", "filename", "parse", NULL};
+static char *eval_keywords[] = {"expr", "filename", "convert", NULL};
 static char *exec_keywords[] = {"defs", "filename", NULL};
 
+/* Helpers to allocate and free our object */
+Starlark *starlarkAlloc(PyTypeObject *type) {
+  /* Necessary because Cgo can't do function pointers */
+  return (Starlark *)type->tp_alloc(type, 0);
+}
+
+void starlarkFree(Starlark *self) {
+  /* Necessary because Cgo can't do function pointers */
+  Py_TYPE(self)->tp_free((PyObject *)self);
+}
+
 /* Helpers to parse method arguments */
-int CgoParseEvalArgs(PyObject *args, PyObject *kwargs, char **expr,
-                     char **filename, unsigned int *parse) {
+int parseEvalArgs(PyObject *args, PyObject *kwargs, char **expr,
+                  char **filename, unsigned int *convert) {
   /* Necessary because Cgo can't do varargs */
   /* One required string, folloed by an optional string and an optional bool */
   return PyArg_ParseTupleAndKeywords(args, kwargs, "s|$sp", eval_keywords, expr,
-                                     filename, parse);
+                                     filename, convert);
 }
 
-int GgoParseExecArgs(PyObject *args, PyObject *kwargs, char **defs,
-                     char **filename) {
+int parseExecArgs(PyObject *args, PyObject *kwargs, char **defs,
+                  char **filename) {
   /* Necessary because Cgo can't do varargs */
   /* One required string, folloed by an optional string */
   return PyArg_ParseTupleAndKeywords(args, kwargs, "s|$s", exec_keywords, defs,
                                      filename);
 }
 
-/* This stuff is in the Go file */
-StarlarkGo *StarlarkGo_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
-void StarlarkGo_dealloc(StarlarkGo *self);
-PyObject *StarlarkGo_eval(StarlarkGo *self, PyObject *args);
-PyObject *StarlarkGo_exec(StarlarkGo *self, PyObject *args);
-
-/* StarlarkGo methods */
-static PyMethodDef StarlarkGo_methods[] = {
-    {"eval", (PyCFunction)StarlarkGo_eval, METH_VARARGS | METH_KEYWORDS,
-     "Evaluate a Starlark expression"},
-    {"exec", (PyCFunction)StarlarkGo_exec, METH_VARARGS | METH_KEYWORDS,
-     "Execute Starlark code, modifying the global state"},
-    {NULL} /* Sentinel */
-};
-
-/* StarlarkGo type */
-static PyTypeObject StarlarkGoType = {
-    PyVarObject_HEAD_INIT(NULL, 0) // this confuses clang-format
-        .tp_name = "pystarlark._lib.StarlarkGo",
-    .tp_doc = "Starlark interpreter",
-    .tp_basicsize = sizeof(StarlarkGo),
-    .tp_itemsize = 0,
-    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-    .tp_new = (newfunc)StarlarkGo_new,
-    .tp_dealloc = (destructor)StarlarkGo_dealloc,
-    .tp_methods = StarlarkGo_methods};
-
-/* Module */
-static PyModuleDef pystarlark_lib = {
-    PyModuleDef_HEAD_INIT,
-    .m_name = "pystarlark._lib",
-    .m_doc = "Interface to starlark-go",
-    .m_size = -1,
-};
-
 /* Helpers for Cgo to build exception arguments */
-PyObject *CgoStarlarkErrorArgs(const char *error_msg, const char *error_type) {
+PyObject *makeStarlarkErrorArgs(const char *error_msg, const char *error_type) {
   /* Necessary because Cgo can't do varargs */
   return Py_BuildValue("ss", error_msg, error_type);
 }
 
-PyObject *CgoSyntaxErrorArgs(const char *error_msg, const char *error_type,
-                             const char *msg, const char *filename,
-                             const unsigned int line,
-                             const unsigned int column) {
+PyObject *makeSyntaxErrorArgs(const char *error_msg, const char *error_type,
+                              const char *msg, const char *filename,
+                              const unsigned int line,
+                              const unsigned int column) {
   /* Necessary because Cgo can't do varargs */
   /* Four strings and two unsigned integers */
   return Py_BuildValue("ssssII", error_msg, error_type, msg, filename, line,
                        column);
 }
 
-PyObject *CgoEvalErrorArgs(const char *error_msg, const char *error_type,
-                           const char *backtrace) {
+PyObject *makeEvalErrorArgs(const char *error_msg, const char *error_type,
+                            const char *backtrace) {
   /* Necessary because Cgo can't do varargs */
   /* Three strings */
   return Py_BuildValue("sss", error_msg, error_type, backtrace);
 }
 
-PyObject *CgoResolveErrorItem(const char *msg, const unsigned int line,
-                              const unsigned int column) {
+PyObject *makeResolveErrorItem(const char *msg, const unsigned int line,
+                               const unsigned int column) {
   /* Necessary because Cgo can't do varargs */
   /* A string and two unsigned integers */
   PyObject *args = Py_BuildValue("sII", msg, line, column);
@@ -102,35 +108,20 @@ PyObject *CgoResolveErrorItem(const char *msg, const unsigned int line,
   return obj;
 }
 
-PyObject *CgoResolveErrorArgs(const char *error_msg, const char *error_type,
-                              PyObject *errors) {
+PyObject *makeResolveErrorArgs(const char *error_msg, const char *error_type,
+                               PyObject *errors) {
   /* Necessary because Cgo can't do varargs */
   /* Two strings and a Python object */
   return Py_BuildValue("ssO", error_msg, error_type, errors);
 }
 
 /* Other assorted helpers for Cgo */
-StarlarkGo *CgoStarlarkGoAlloc(PyTypeObject *type) {
-  /* Necessary because Cgo can't do function pointers */
-  return (StarlarkGo *)type->tp_alloc(type, 0);
-}
-
-void CgoStarlarkGoDealloc(StarlarkGo *self) {
-  /* Necessary because Cgo can't do function pointers */
-  Py_TYPE(self)->tp_free((PyObject *)self);
-}
-
-PyObject *CgoPyBuildOneValue(const char *fmt, const void *src) {
+PyObject *cgoPy_BuildString(const char *src) {
   /* Necessary because Cgo can't do varargs */
-  return Py_BuildValue(fmt, src);
+  return Py_BuildValue("s", src);
 }
 
-PyObject *CgoPyNone() {
-  /* Necessary because Cgo can't do macros */
-  Py_RETURN_NONE;
-}
-
-PyObject *CgoPyNewRef(PyObject *obj) {
+PyObject *cgoPy_NewRef(PyObject *obj) {
   /* Necessary because Cgo can't do macros and Py_NewRef is part of
    * Python's "stable API" but only since 3.10
    */
@@ -150,7 +141,7 @@ static PyObject *get_exception_class(PyObject *errors, const char *name) {
 }
 
 /* Module initialization */
-PyMODINIT_FUNC PyInit__lib(void) {
+PyMODINIT_FUNC PyInit_starlark_go(void) {
   PyObject *errors = PyImport_ImportModule("pystarlark.errors");
   if (errors == NULL)
     return NULL;
@@ -180,16 +171,16 @@ PyMODINIT_FUNC PyInit__lib(void) {
     return NULL;
 
   PyObject *m;
-  if (PyType_Ready(&StarlarkGoType) < 0)
+  if (PyType_Ready(&StarlarkType) < 0)
     return NULL;
 
   m = PyModule_Create(&pystarlark_lib);
   if (m == NULL)
     return NULL;
 
-  Py_INCREF(&StarlarkGoType);
-  if (PyModule_AddObject(m, "StarlarkGo", (PyObject *)&StarlarkGoType) < 0) {
-    Py_DECREF(&StarlarkGoType);
+  Py_INCREF(&StarlarkType);
+  if (PyModule_AddObject(m, "Starlark", (PyObject *)&StarlarkType) < 0) {
+    Py_DECREF(&StarlarkType);
     Py_DECREF(m);
 
     return NULL;

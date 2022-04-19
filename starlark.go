@@ -9,10 +9,6 @@ extern PyObject *SyntaxError;
 extern PyObject *EvalError;
 extern PyObject *ResolveError;
 extern PyObject *ConversionError;
-
-extern const char *buildBool;
-extern const char *buildStr;
-extern const char *buildUint;
 */
 import "C"
 
@@ -65,13 +61,13 @@ func raisePythonException(err error) {
 		line := C.uint(syntaxErr.Pos.Line)
 		column := C.uint(syntaxErr.Pos.Col)
 
-		exc_args = C.CgoSyntaxErrorArgs(error_msg, error_type, msg, filename, line, column)
+		exc_args = C.makeSyntaxErrorArgs(error_msg, error_type, msg, filename, line, column)
 		exc_type = C.SyntaxError
 	case errors.As(err, &evalErr):
 		backtrace := C.CString(evalErr.Backtrace())
 		defer C.free(unsafe.Pointer(backtrace))
 
-		exc_args = C.CgoEvalErrorArgs(error_msg, error_type, backtrace)
+		exc_args = C.makeEvalErrorArgs(error_msg, error_type, backtrace)
 		exc_type = C.EvalError
 	case errors.As(err, &resolveErr):
 		items := C.PyTuple_New(C.Py_ssize_t(len(resolveErr)))
@@ -81,13 +77,13 @@ func raisePythonException(err error) {
 			msg := C.CString(err.Msg)
 			defer C.free(unsafe.Pointer(msg))
 
-			C.PyTuple_SetItem(items, C.Py_ssize_t(i), C.CgoResolveErrorItem(msg, C.uint(err.Pos.Line), C.uint(err.Pos.Col)))
+			C.PyTuple_SetItem(items, C.Py_ssize_t(i), C.makeResolveErrorItem(msg, C.uint(err.Pos.Line), C.uint(err.Pos.Col)))
 		}
 
-		exc_args = C.CgoResolveErrorArgs(error_msg, error_type, items)
+		exc_args = C.makeResolveErrorArgs(error_msg, error_type, items)
 		exc_type = C.ResolveError
 	default:
-		exc_args = C.CgoStarlarkErrorArgs(error_msg, error_type)
+		exc_args = C.makeStarlarkErrorArgs(error_msg, error_type)
 		exc_type = C.StarlarkError
 	}
 
@@ -111,7 +107,7 @@ func starlarkIntToPython(x starlark.Int) *C.PyObject {
 func starlarkStringToPython(x starlark.String) *C.PyObject {
 	cstr := C.CString(string(x))
 	defer C.free(unsafe.Pointer(cstr))
-	return C.CgoPyBuildOneValue(C.buildStr, unsafe.Pointer(cstr))
+	return C.cgoPy_BuildString(cstr)
 }
 
 func starlarkDictToPython(x starlark.IterableMapping) *C.PyObject {
@@ -217,12 +213,12 @@ func starlarkBytesToPython(x starlark.Bytes) *C.PyObject {
 func starlarkToPython(x starlark.Value) *C.PyObject {
 	switch x := x.(type) {
 	case starlark.NoneType:
-		return C.CgoPyNone()
+		return C.cgoPy_NewRef(C.Py_None)
 	case starlark.Bool:
 		if x {
-			return C.CgoPyNewRef(C.Py_True)
+			return C.cgoPy_NewRef(C.Py_True)
 		} else {
-			return C.CgoPyNewRef(C.Py_False)
+			return C.cgoPy_NewRef(C.Py_False)
 		}
 	case starlark.Int:
 		return starlarkIntToPython(x)
@@ -251,9 +247,9 @@ func starlarkToPython(x starlark.Value) *C.PyObject {
 	return nil
 }
 
-//export StarlarkGo_new
-func StarlarkGo_new(pytype *C.PyTypeObject, args *C.PyObject, kwargs *C.PyObject) *C.StarlarkGo {
-	self := C.CgoStarlarkGoAlloc(pytype)
+//export Starlark_new
+func Starlark_new(pytype *C.PyTypeObject, args *C.PyObject, kwargs *C.PyObject) *C.Starlark {
+	self := C.starlarkAlloc(pytype)
 	if self == nil {
 		return nil
 	}
@@ -269,8 +265,8 @@ func StarlarkGo_new(pytype *C.PyTypeObject, args *C.PyObject, kwargs *C.PyObject
 	return self
 }
 
-//export StarlarkGo_dealloc
-func StarlarkGo_dealloc(self *C.StarlarkGo) {
+//export Starlark_dealloc
+func Starlark_dealloc(self *C.Starlark) {
 	threadId := uint64(self.starlark_thread)
 	mutex := MUTEXES[threadId]
 
@@ -281,19 +277,19 @@ func StarlarkGo_dealloc(self *C.StarlarkGo) {
 	delete(GLOBALS, threadId)
 	delete(MUTEXES, threadId)
 
-	C.CgoStarlarkGoDealloc(self)
+	C.starlarkFree(self)
 }
 
-//export StarlarkGo_eval
-func StarlarkGo_eval(self *C.StarlarkGo, args *C.PyObject, kwargs *C.PyObject) *C.PyObject {
+//export Starlark_eval
+func Starlark_eval(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject) *C.PyObject {
 	var (
 		expr       *C.char
 		filename   *C.char = nil
-		parse      C.uint  = 1
+		convert    C.uint  = 1
 		goFilename string  = "<expr>"
 	)
 
-	if C.CgoParseEvalArgs(args, kwargs, &expr, &filename, &parse) == 0 {
+	if C.parseEvalArgs(args, kwargs, &expr, &filename, &convert) == 0 {
 		return nil
 	}
 
@@ -320,24 +316,24 @@ func StarlarkGo_eval(self *C.StarlarkGo, args *C.PyObject, kwargs *C.PyObject) *
 		return nil
 	}
 
-	if parse == 0 {
+	if convert == 0 {
 		cstr := C.CString(result.String())
 		defer C.free(unsafe.Pointer(cstr))
-		return C.CgoPyBuildOneValue(C.buildStr, unsafe.Pointer(cstr))
+		return C.cgoPy_BuildString(cstr)
 	} else {
 		return starlarkToPython(result)
 	}
 }
 
-//export StarlarkGo_exec
-func StarlarkGo_exec(self *C.StarlarkGo, args *C.PyObject, kwargs *C.PyObject) *C.PyObject {
+//export Starlark_exec
+func Starlark_exec(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject) *C.PyObject {
 	var (
 		defs       *C.char
 		filename   *C.char = nil
 		goFilename string  = "<expr>"
 	)
 
-	if C.GgoParseExecArgs(args, kwargs, &defs, &filename) == 0 {
+	if C.parseExecArgs(args, kwargs, &defs, &filename) == 0 {
 		return nil
 	}
 
@@ -364,7 +360,7 @@ func StarlarkGo_exec(self *C.StarlarkGo, args *C.PyObject, kwargs *C.PyObject) *
 	}
 
 	GLOBALS[threadId] = globals
-	return C.CgoPyNone()
+	return C.cgoPy_NewRef(C.Py_None)
 }
 
 func main() {}

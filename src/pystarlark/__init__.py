@@ -1,4 +1,3 @@
-from pystarlark._lib import StarlarkGo as Starlark
 from pystarlark.errors import (
     ConversionError,
     EvalError,
@@ -6,6 +5,7 @@ from pystarlark.errors import (
     StarlarkError,
     SyntaxError,
 )
+from pystarlark.starlark_go import Starlark  # pyright: reportMissingModuleSource=false
 
 __all__ = [
     "Starlark",
