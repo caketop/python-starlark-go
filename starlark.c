@@ -7,6 +7,10 @@ Starlark *Starlark_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 void Starlark_dealloc(Starlark *self);
 PyObject *Starlark_eval(Starlark *self, PyObject *args);
 PyObject *Starlark_exec(Starlark *self, PyObject *args);
+PyObject *Starlark_keys(Starlark *self, PyObject *_);
+PyObject *Starlark_tp_iter(Starlark *self);
+Py_ssize_t Starlark_mp_length(Starlark *self);
+PyObject *Starlark_mp_subscript(Starlark *self, PyObject *key);
 
 /* Exceptions - the module init function will fill these in */
 PyObject *StarlarkError;
@@ -46,8 +50,15 @@ static PyMethodDef StarlarkGo_methods[] = {
      "Evaluate a Starlark expression"},
     {"exec", (PyCFunction)Starlark_exec, METH_VARARGS | METH_KEYWORDS,
      "Execute Starlark code, modifying the global state"},
+    {"keys", (PyCFunction)Starlark_keys, METH_NOARGS, "TODO"},
     {NULL} /* Sentinel */
 };
+
+/* Container for object mapping methods */
+static PyMappingMethods StarlarkGo_mapping = {.mp_length = Starlark_mp_length,
+                                              .mp_subscript =
+                                                  Starlark_mp_subscript,
+                                              .mp_ass_subscript = NULL};
 
 /* Python type for object */
 static PyTypeObject StarlarkType = {
@@ -59,7 +70,10 @@ static PyTypeObject StarlarkType = {
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_new = (newfunc)Starlark_new,
     .tp_dealloc = (destructor)Starlark_dealloc,
-    .tp_methods = StarlarkGo_methods};
+    .tp_methods = StarlarkGo_methods,
+    .tp_iter = (getiterfunc)Starlark_tp_iter,
+    .tp_as_mapping = &StarlarkGo_mapping,
+};
 
 /* Module */
 static PyModuleDef pystarlark_lib = {PyModuleDef_HEAD_INIT,

@@ -3,6 +3,9 @@ import pytest
 from pystarlark import Starlark, configure_starlark
 from pystarlark.errors import ResolveError
 
+NESTED = [{"one": (1, 1, 1), "two": [2, {"two": 2222.22}]}, ("a", "b", "c")]
+NESTED_STR = '[{"one": (1, 1, 1), "two": [2, {"two": 2222.22}]}, ("a", "b", "c")]'
+
 
 def test_int():
     s = Starlark()
@@ -172,3 +175,10 @@ def test_tuple():
     x = s.eval("(13, 37)", convert=False)
     assert isinstance(x, str)
     assert x == "(13, 37)"
+
+
+def test_nested():
+    s = Starlark()
+
+    x = s.eval(NESTED_STR)
+    assert x == NESTED

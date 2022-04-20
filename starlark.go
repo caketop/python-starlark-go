@@ -26,18 +26,14 @@ import (
 )
 
 type StarlarkState struct {
-	Globals *starlark.StringDict
-	Mutex   *sync.RWMutex
+	Globals starlark.StringDict
+	Mutex   sync.RWMutex
 }
 
 var (
 	STATE       = map[uint64]*StarlarkState{}
 	STATE_MUTEX = sync.Mutex{}
 )
-
-func init() {
-	resolve.AllowSet = true
-}
 
 //export ConfigureStarlark
 func ConfigureStarlark(allowSet C.int, allowGlobalReassign C.int, allowRecursion C.int) {
@@ -188,8 +184,12 @@ func starlarkTupleToPython(x starlark.Tuple) *C.PyObject {
 			return nil
 		}
 
-		// This "steals" the ref to value so we don't need to DecRef
-		C.PyTuple_SetItem(tuple, C.Py_ssize_t(i), value)
+		// This "steals" the ref to value so we don't need to DecRef after
+		if C.PyTuple_SetItem(tuple, C.Py_ssize_t(i), value) != 0 {
+			C.Py_DecRef(value)
+			C.Py_DecRef(tuple)
+			return nil
+		}
 	}
 
 	return tuple
@@ -205,13 +205,16 @@ func starlarkListToPython(x starlark.Iterable) *C.PyObject {
 		value := starlarkToPython(elem)
 
 		if value == nil {
-			C.Py_DecRef(value)
 			C.Py_DecRef(list)
 			return nil
 		}
 
-		// This "steals" the ref to value so we don't need to DecRef
-		C.PyList_Append(list, value)
+		// This "steals" the ref to value so we don't need to DecRef after
+		if C.PyList_Append(list, value) != 0 {
+			C.Py_DecRef(value)
+			C.Py_DecRef(list)
+			return nil
+		}
 	}
 
 	return list
@@ -282,6 +285,32 @@ func starlarkToPython(x starlark.Value) *C.PyObject {
 	return nil
 }
 
+func rlockSelf(self *C.Starlark) *StarlarkState {
+	stateId := uint64(self.state_id)
+	state, ok := STATE[stateId]
+
+	if !ok {
+		raiseRuntimeError("Internal error: rlockSelf: unknown state_id")
+		return nil
+	}
+
+	state.Mutex.RLock()
+	return state
+}
+
+func lockSelf(self *C.Starlark) *StarlarkState {
+	stateId := uint64(self.state_id)
+	state, ok := STATE[stateId]
+
+	if !ok {
+		raiseRuntimeError("Internal error: lockSelf: unknown state_id")
+		return nil
+	}
+
+	state.Mutex.Lock()
+	return state
+}
+
 //export Starlark_new
 func Starlark_new(pytype *C.PyTypeObject, args *C.PyObject, kwargs *C.PyObject) *C.Starlark {
 	self := C.starlarkAlloc(pytype)
@@ -302,8 +331,8 @@ func Starlark_new(pytype *C.PyTypeObject, args *C.PyObject, kwargs *C.PyObject) 
 		}
 	}
 
-	STATE[stateId] = &StarlarkState{Globals: &starlark.StringDict{}, Mutex: &sync.RWMutex{}}
 	self.state_id = C.ulong(stateId)
+	STATE[stateId] = &StarlarkState{Globals: starlark.StringDict{}, Mutex: sync.RWMutex{}}
 	return self
 }
 
@@ -341,25 +370,15 @@ func Starlark_eval(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject) *C.Py
 		goFilename = C.GoString(filename)
 	}
 
-	stateId := uint64(self.state_id)
-	state, ok := STATE[stateId]
-
-	if !ok {
-		raiseRuntimeError("Internal error: eval: unknown state_id")
+	state := rlockSelf(self)
+	if state == nil {
 		return nil
 	}
-
-	state.Mutex.RLock()
 	defer state.Mutex.RUnlock()
-
-	if _, ok = STATE[stateId]; !ok {
-		raiseRuntimeError("Internal error: eval: missing state_id after RLock()")
-		return nil
-	}
 
 	thread := &starlark.Thread{}
 	pyThread := C.PyEval_SaveThread()
-	result, err := starlark.Eval(thread, goFilename, goExpr, *state.Globals)
+	result, err := starlark.Eval(thread, goFilename, goExpr, state.Globals)
 	C.PyEval_RestoreThread(pyThread)
 
 	if err != nil {
@@ -394,25 +413,22 @@ func Starlark_exec(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject) *C.Py
 		goFilename = C.GoString(filename)
 	}
 
-	stateId := uint64(self.state_id)
-	state, ok := STATE[stateId]
-
-	if !ok {
-		raiseRuntimeError("Internal error: exec: unknown state_id")
+	state := lockSelf(self)
+	if state == nil {
 		return nil
 	}
-
-	state.Mutex.Lock()
 	defer state.Mutex.Unlock()
 
-	if _, ok = STATE[stateId]; !ok {
-		raiseRuntimeError("Internal error: exec: missing state_id after Lock()")
+	pyThread := C.PyEval_SaveThread()
+	_, program, err := starlark.SourceProgram(goFilename, goDefs, state.Globals.Has)
+	if err != nil {
+		C.PyEval_RestoreThread(pyThread)
+		raisePythonException(err)
 		return nil
 	}
 
 	thread := &starlark.Thread{}
-	pyThread := C.PyEval_SaveThread()
-	globals, err := starlark.ExecFile(thread, goFilename, goDefs, *state.Globals)
+	newGlobals, err := program.Init(thread, state.Globals)
 	C.PyEval_RestoreThread(pyThread)
 
 	if err != nil {
@@ -420,8 +436,96 @@ func Starlark_exec(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject) *C.Py
 		return nil
 	}
 
-	state.Globals = &globals
+	for k, v := range newGlobals {
+		state.Globals[k] = v
+	}
+
 	return C.cgoPy_NewRef(C.Py_None)
 }
+
+//export Starlark_keys
+func Starlark_keys(self *C.Starlark, _ *C.PyObject) *C.PyObject {
+	state := rlockSelf(self)
+	if state == nil {
+		return nil
+	}
+	defer state.Mutex.RUnlock()
+
+	list := C.PyList_New(0)
+	for _, key := range state.Globals.Keys() {
+		ckey := C.CString(key)
+		defer C.free(unsafe.Pointer(ckey))
+
+		pykey := C.cgoPy_BuildString(ckey)
+		if pykey == nil {
+			C.Py_DecRef(list)
+			return nil
+		}
+
+		if C.PyList_Append(list, pykey) != 0 {
+			C.Py_DecRef(pykey)
+			C.Py_DecRef(list)
+			return nil
+		}
+	}
+
+	return list
+}
+
+//export Starlark_tp_iter
+func Starlark_tp_iter(self *C.Starlark) *C.PyObject {
+	keys := Starlark_keys(self, nil)
+	if keys == nil {
+		return nil
+	}
+	return C.PyObject_GetIter(keys)
+}
+
+//export Starlark_mp_length
+func Starlark_mp_length(self *C.Starlark) C.Py_ssize_t {
+	state := rlockSelf(self)
+	if state == nil {
+		return -1
+	}
+	defer state.Mutex.RUnlock()
+
+	return C.Py_ssize_t(len(state.Globals.Keys()))
+}
+
+//export Starlark_mp_subscript
+func Starlark_mp_subscript(self *C.Starlark, key *C.PyObject) *C.PyObject {
+	keystr := C.PyObject_Str(key)
+	if keystr == nil {
+		return nil
+	}
+	defer C.Py_DecRef(keystr)
+
+	var size C.Py_ssize_t
+	ckey := C.PyUnicode_AsUTF8AndSize(keystr, &size)
+	if ckey == nil {
+		return nil
+	}
+
+	goKey := C.GoString(ckey)
+	state := rlockSelf(self)
+	if state == nil {
+		return nil
+	}
+	defer state.Mutex.RUnlock()
+
+	value, ok := state.Globals[goKey]
+	if !ok {
+		C.PyErr_SetObject(C.PyExc_KeyError, key)
+		return nil
+	}
+
+	return starlarkToPython(value)
+}
+
+/*
+func Starlark_mp_ass_subscript(self *C.Starlark, key *C.PyObject, v *C.PyObject) C.int {
+
+}
+*/
 
 func main() {}
