@@ -27,10 +27,14 @@
   "extensions": [
     "bierner.github-markdown-preview",
     "eamodio.gitlens",
+    "foxundermoon.shell-format",
     "golang.go",
+    "ms-azuretools.vscode-docker",
     "ms-python.python",
     "ms-python.vscode-pylance",
     "ms-vscode.cpptools",
     "oderwat.indent-rainbow",
+    "tamasfe.even-better-toml",
+    "timonwong.shellcheck"
   ],
 }
