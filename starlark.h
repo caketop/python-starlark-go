@@ -6,7 +6,7 @@
 
 /* Starlark object */
 typedef struct Starlark {
-  PyObject_HEAD unsigned long starlark_thread;
+  PyObject_HEAD unsigned long state_id;
 } Starlark;
 
 /* Helpers for Cgo, which can't handle varargs or macros */
