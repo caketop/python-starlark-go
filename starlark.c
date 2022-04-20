@@ -1,9 +1,8 @@
 #include "starlark.h"
 
 /* Declarations for object methods written in Go */
-void ConfigureStarlark(unsigned int allowSet, unsigned int allowGlobalReassign,
-                       unsigned int allowRecursion);
-
+void ConfigureStarlark(int allowSet, int allowGlobalReassign,
+                       int allowRecursion);
 Starlark *Starlark_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 void Starlark_dealloc(Starlark *self);
 PyObject *Starlark_eval(Starlark *self, PyObject *args);
@@ -22,7 +21,8 @@ static char *configure_keywords[] = {"allow_set", "allow_global_reassign",
                                      "allow_recursion", NULL};
 
 PyObject *configure_starlark(PyObject *self, PyObject *args, PyObject *kwargs) {
-  unsigned int allow_set = 0, allow_global_reassign = 0, allow_recursion = 0;
+  /* ConfigureStarlark interprets -1 as "unspecified" */
+  int allow_set = -1, allow_global_reassign = -1, allow_recursion = -1;
 
   if (PyArg_ParseTupleAndKeywords(args, kwargs, "|$ppp", configure_keywords,
                                   &allow_set, &allow_global_reassign,
