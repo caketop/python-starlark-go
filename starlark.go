@@ -25,10 +25,14 @@ import (
 	"go.starlark.net/syntax"
 )
 
+type StarlarkState struct {
+	Globals *starlark.StringDict
+	Mutex   *sync.RWMutex
+}
+
 var (
-	THREADS = map[uint64]*starlark.Thread{}
-	GLOBALS = map[uint64]starlark.StringDict{}
-	MUTEXES = map[uint64]*sync.Mutex{}
+	STATE       = map[uint64]*StarlarkState{}
+	STATE_MUTEX = sync.Mutex{}
 )
 
 func init() {
@@ -89,6 +93,12 @@ func raisePythonException(err error) {
 
 	C.PyErr_SetObject(exc_type, exc_args)
 	C.Py_DecRef(exc_args)
+}
+
+func raiseRuntimeError(msg string) {
+	cmsg := C.CString(msg)
+	defer C.free(unsafe.Pointer(cmsg))
+	C.PyErr_SetString(C.PyExc_RuntimeError, cmsg)
 }
 
 func starlarkIntToPython(x starlark.Int) *C.PyObject {
@@ -254,29 +264,36 @@ func Starlark_new(pytype *C.PyTypeObject, args *C.PyObject, kwargs *C.PyObject) 
 		return nil
 	}
 
-	threadId := rand.Uint64()
-	thread := &starlark.Thread{}
+	var stateId uint64
 
-	THREADS[threadId] = thread
-	GLOBALS[threadId] = starlark.StringDict{}
-	MUTEXES[threadId] = &sync.Mutex{}
+	STATE_MUTEX.Lock()
+	defer STATE_MUTEX.Unlock()
 
-	self.starlark_thread = C.ulong(threadId)
+	for {
+		stateId = rand.Uint64()
+		_, ok := STATE[stateId]
+		if !ok {
+			break
+		}
+	}
+
+	STATE[stateId] = &StarlarkState{Globals: &starlark.StringDict{}, Mutex: &sync.RWMutex{}}
+	self.state_id = C.ulong(stateId)
 	return self
 }
 
 //export Starlark_dealloc
 func Starlark_dealloc(self *C.Starlark) {
-	threadId := uint64(self.starlark_thread)
-	mutex := MUTEXES[threadId]
+	STATE_MUTEX.Lock()
+	defer STATE_MUTEX.Unlock()
 
-	mutex.Lock()
-	defer mutex.Unlock()
+	stateId := uint64(self.state_id)
+	state := STATE[stateId]
 
-	delete(THREADS, threadId)
-	delete(GLOBALS, threadId)
-	delete(MUTEXES, threadId)
+	state.Mutex.Lock()
+	defer state.Mutex.Unlock()
 
+	delete(STATE, stateId)
 	C.starlarkFree(self)
 }
 
@@ -299,16 +316,25 @@ func Starlark_eval(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject) *C.Py
 		goFilename = C.GoString(filename)
 	}
 
-	threadId := uint64(self.starlark_thread)
-	mutex := MUTEXES[threadId]
+	stateId := uint64(self.state_id)
+	state, ok := STATE[stateId]
 
-	mutex.Lock()
-	defer mutex.Unlock()
+	if !ok {
+		raiseRuntimeError("Internal error: eval: unknown state_id")
+		return nil
+	}
 
-	thread := THREADS[threadId]
-	globals := GLOBALS[threadId]
+	state.Mutex.RLock()
+	defer state.Mutex.RUnlock()
+
+	if _, ok = STATE[stateId]; !ok {
+		raiseRuntimeError("Internal error: eval: missing state_id after RLock()")
+		return nil
+	}
+
+	thread := &starlark.Thread{}
 	pyThread := C.PyEval_SaveThread()
-	result, err := starlark.Eval(thread, goFilename, goExpr, globals)
+	result, err := starlark.Eval(thread, goFilename, goExpr, *state.Globals)
 	C.PyEval_RestoreThread(pyThread)
 
 	if err != nil {
@@ -343,15 +369,25 @@ func Starlark_exec(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject) *C.Py
 		goFilename = C.GoString(filename)
 	}
 
-	threadId := uint64(self.starlark_thread)
-	mutex := MUTEXES[threadId]
+	stateId := uint64(self.state_id)
+	state, ok := STATE[stateId]
 
-	mutex.Lock()
-	defer mutex.Unlock()
+	if !ok {
+		raiseRuntimeError("Internal error: exec: unknown state_id")
+		return nil
+	}
 
-	thread := THREADS[threadId]
+	state.Mutex.Lock()
+	defer state.Mutex.Unlock()
+
+	if _, ok = STATE[stateId]; !ok {
+		raiseRuntimeError("Internal error: exec: missing state_id after Lock()")
+		return nil
+	}
+
+	thread := &starlark.Thread{}
 	pyThread := C.PyEval_SaveThread()
-	globals, err := starlark.ExecFile(thread, goFilename, goDefs, GLOBALS[threadId])
+	globals, err := starlark.ExecFile(thread, goFilename, goDefs, *state.Globals)
 	C.PyEval_RestoreThread(pyThread)
 
 	if err != nil {
@@ -359,7 +395,7 @@ func Starlark_exec(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject) *C.Py
 		return nil
 	}
 
-	GLOBALS[threadId] = globals
+	state.Globals = &globals
 	return C.cgoPy_NewRef(C.Py_None)
 }
 
