@@ -1,6 +1,9 @@
 #include "starlark.h"
 
 /* Declarations for object methods written in Go */
+void ConfigureStarlark(unsigned int allowSet, unsigned int allowGlobalReassign,
+                       unsigned int allowRecursion);
+
 Starlark *Starlark_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 void Starlark_dealloc(Starlark *self);
 PyObject *Starlark_eval(Starlark *self, PyObject *args);
@@ -13,6 +16,29 @@ PyObject *EvalError;
 PyObject *ResolveError;
 PyObject *ResolveErrorItem;
 PyObject *ConversionError;
+
+/* Wrapper for setting Starlark configuration options */
+static char *configure_keywords[] = {"allow_set", "allow_global_reassign",
+                                     "allow_recursion", NULL};
+
+PyObject *configure_starlark(PyObject *self, PyObject *args, PyObject *kwargs) {
+  unsigned int allow_set = 0, allow_global_reassign = 0, allow_recursion = 0;
+
+  if (PyArg_ParseTupleAndKeywords(args, kwargs, "|$ppp", configure_keywords,
+                                  &allow_set, &allow_global_reassign,
+                                  &allow_recursion) == NULL) {
+    return NULL;
+  }
+
+  ConfigureStarlark(allow_set, allow_global_reassign, allow_recursion);
+  Py_RETURN_NONE;
+}
+
+/* Container for module methods */
+static PyMethodDef module_methods[] = {
+    {"configure_starlark", (PyCFunction)configure_starlark,
+     METH_VARARGS | METH_KEYWORDS, "Configure the starlark interpreter"},
+    {NULL}};
 
 /* Container for object methods */
 static PyMethodDef StarlarkGo_methods[] = {
@@ -36,12 +62,10 @@ static PyTypeObject StarlarkType = {
     .tp_methods = StarlarkGo_methods};
 
 /* Module */
-static PyModuleDef pystarlark_lib = {
-    PyModuleDef_HEAD_INIT,
-    .m_name = "pystarlark.starlark_go",
-    .m_doc = "Interface to starlark-go",
-    .m_size = -1,
-};
+static PyModuleDef pystarlark_lib = {PyModuleDef_HEAD_INIT,
+                                     .m_name = "pystarlark.starlark_go",
+                                     .m_doc = "Interface to starlark-go",
+                                     .m_size = -1, .m_methods = module_methods};
 
 /* Argument names for our methods */
 static char *eval_keywords[] = {"expr", "filename", "convert", NULL};

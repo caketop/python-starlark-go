@@ -39,6 +39,27 @@ func init() {
 	resolve.AllowSet = true
 }
 
+//export ConfigureStarlark
+func ConfigureStarlark(allowSet C.uint, allowGlobalReassign C.uint, allowRecursion C.uint) {
+	if allowSet > 0 {
+		resolve.AllowSet = true
+	} else {
+		resolve.AllowSet = false
+	}
+
+	if allowGlobalReassign > 0 {
+		resolve.AllowGlobalReassign = true
+	} else {
+		resolve.AllowGlobalReassign = false
+	}
+
+	if allowRecursion > 0 {
+		resolve.AllowRecursion = true
+	} else {
+		resolve.AllowRecursion = false
+	}
+}
+
 func raisePythonException(err error) {
 	var (
 		exc_args   *C.PyObject
