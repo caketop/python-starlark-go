@@ -10,3 +10,4 @@ dist/
 .tox
 core
 wheelhouse
+src/pystarlark/scmversion.py
