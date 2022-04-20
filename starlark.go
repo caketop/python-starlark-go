@@ -40,23 +40,27 @@ func init() {
 }
 
 //export ConfigureStarlark
-func ConfigureStarlark(allowSet C.uint, allowGlobalReassign C.uint, allowRecursion C.uint) {
-	if allowSet > 0 {
-		resolve.AllowSet = true
-	} else {
+func ConfigureStarlark(allowSet C.int, allowGlobalReassign C.int, allowRecursion C.int) {
+	// Ignore input values other than 0 or 1 and leave current value in place
+	switch allowSet {
+	case 0:
 		resolve.AllowSet = false
+	case 1:
+		resolve.AllowSet = true
 	}
 
-	if allowGlobalReassign > 0 {
-		resolve.AllowGlobalReassign = true
-	} else {
+	switch allowGlobalReassign {
+	case 0:
 		resolve.AllowGlobalReassign = false
+	case 1:
+		resolve.AllowGlobalReassign = true
 	}
 
-	if allowRecursion > 0 {
-		resolve.AllowRecursion = true
-	} else {
+	switch allowRecursion {
+	case 0:
 		resolve.AllowRecursion = false
+	case 1:
+		resolve.AllowRecursion = true
 	}
 }
 
