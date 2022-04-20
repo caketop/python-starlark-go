@@ -1,4 +1,7 @@
-from pystarlark import Starlark
+import pytest
+
+from pystarlark import Starlark, configure_starlark
+from pystarlark.errors import ResolveError
 
 
 def test_int():
@@ -120,6 +123,11 @@ def test_dict():
 def test_set():
     s = Starlark()
 
+    configure_starlark(allow_set=False)
+    with pytest.raises(ResolveError):
+        s.eval("set((1, 2, 3))")
+
+    configure_starlark(allow_set=True)
     x = s.eval("set((1, 2, 3))")
     assert isinstance(x, set)
     assert x == set((1, 2, 3))

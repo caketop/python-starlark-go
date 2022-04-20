@@ -5,15 +5,17 @@ from pystarlark.errors import (
     StarlarkError,
     SyntaxError,
 )
-from pystarlark.starlark_go import Starlark  # pyright: reportMissingModuleSource=false
+from pystarlark.starlark_go import (  # pyright: reportMissingModuleSource=false
+    Starlark,
+    configure_starlark,
+)
 
 __all__ = [
     "Starlark",
-    "StarlarkError",
+    "configure_starlark",
     "ConversionError",
     "EvalError",
     "ResolveError",
+    "StarlarkError",
     "SyntaxError",
 ]
-
-__version__ = "0.0.2"
