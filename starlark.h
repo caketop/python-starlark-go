@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #define PY_SSIZE_T_CLEAN
+#undef Py_LIMITED_API
 #include <Python.h>
 
 /* Starlark object */
@@ -53,5 +54,23 @@ PyObject *makeResolveErrorArgs(
 PyObject *cgoPy_BuildString(const char *src);
 
 PyObject *cgoPy_NewRef(PyObject *obj);
+
+int cgoPyFloat_Check(PyObject *obj);
+
+int cgoPyLong_Check(PyObject *obj);
+
+int cgoPyUnicode_Check(PyObject *obj);
+
+int cgoPyBytes_Check(PyObject *obj);
+
+int cgoPySet_Check(PyObject *obj);
+
+int cgoPyTuple_Check(PyObject *obj);
+
+int cgoPyMapping_Check(PyObject *obj);
+
+int cgoPyDict_Check(PyObject *obj);
+
+int cgoPyList_Check(PyObject *obj);
 
 #endif /* PYTHON_STARLARK_GO_H */

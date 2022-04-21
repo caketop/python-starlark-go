@@ -12,6 +12,7 @@ PyObject *Starlark_keys(Starlark *self, PyObject *_);
 PyObject *Starlark_tp_iter(Starlark *self);
 Py_ssize_t Starlark_mp_length(Starlark *self);
 PyObject *Starlark_mp_subscript(Starlark *self, PyObject *key);
+PyObject *Starlark_mp_ass_subscript(Starlark *self, PyObject *key, PyObject *v);
 
 /* Exceptions - the module init function will fill these in */
 PyObject *StarlarkError;
@@ -74,7 +75,7 @@ static PyMethodDef StarlarkGo_methods[] = {
 static PyMappingMethods StarlarkGo_mapping = {
     .mp_length = Starlark_mp_length,
     .mp_subscript = Starlark_mp_subscript,
-    .mp_ass_subscript = NULL,
+    .mp_ass_subscript = Starlark_mp_ass_subscript,
 };
 
 /* Python type for object */
@@ -214,6 +215,54 @@ PyObject *cgoPy_NewRef(PyObject *obj)
    */
   Py_INCREF(obj);
   return obj;
+}
+
+int cgoPyFloat_Check(PyObject *obj)
+{
+  /* Necessary because Cgo can't do macros */
+  return PyFloat_Check(obj);
+}
+
+int cgoPyLong_Check(PyObject *obj)
+{
+  /* Necessary because Cgo can't do macros */
+  return PyLong_Check(obj);
+}
+
+int cgoPyUnicode_Check(PyObject *obj)
+{
+  /* Necessary because Cgo can't do macros */
+  return PyUnicode_Check(obj);
+}
+
+int cgoPyBytes_Check(PyObject *obj)
+{
+  /* Necessary because Cgo can't do macros */
+  return PyBytes_Check(obj);
+}
+
+int cgoPySet_Check(PyObject *obj)
+{
+  /* Necessary because Cgo can't do macros */
+  return PySet_Check(obj);
+}
+
+int cgoPyTuple_Check(PyObject *obj)
+{
+  /* Necessary because Cgo can't do macros */
+  return PyTuple_Check(obj);
+}
+
+int cgoPyDict_Check(PyObject *obj)
+{
+  /* Necessary because Cgo can't do macros */
+  return PyDict_Check(obj);
+}
+
+int cgoPyList_Check(PyObject *obj)
+{
+  /* Necessary because Cgo can't do macros */
+  return PyList_Check(obj);
 }
 
 /* Helper to fetch exception classes */
