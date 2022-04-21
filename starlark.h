@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #define PY_SSIZE_T_CLEAN
+#undef Py_LIMITED_API
 #include <Python.h>
 
 /* Starlark object */
@@ -15,6 +16,8 @@ Starlark *starlarkAlloc(PyTypeObject *type);
 
 void starlarkFree(Starlark *self);
 
+int parseInitArgs(PyObject *args, PyObject *kwargs, PyObject **globals);
+
 int parseEvalArgs(
     PyObject *args,
     PyObject *kwargs,
@@ -23,8 +26,14 @@ int parseEvalArgs(
     unsigned int *convert
 );
 
-int parseExecArgs(
-    PyObject *args, PyObject *kwargs, char **defs, char **filename
+int parseExecArgs(PyObject *args, PyObject *kwargs, char **defs, char **filename);
+
+int parseGetGlobalArgs(
+    PyObject *args, PyObject *kwargs, char **name, PyObject **default_value
+);
+
+int parsePopGlobalArgs(
+    PyObject *args, PyObject *kwargs, char **name, PyObject **default_value
 );
 
 PyObject *makeStarlarkErrorArgs(const char *error_msg, const char *error_type);
@@ -53,5 +62,23 @@ PyObject *makeResolveErrorArgs(
 PyObject *cgoPy_BuildString(const char *src);
 
 PyObject *cgoPy_NewRef(PyObject *obj);
+
+int cgoPyFloat_Check(PyObject *obj);
+
+int cgoPyLong_Check(PyObject *obj);
+
+int cgoPyUnicode_Check(PyObject *obj);
+
+int cgoPyBytes_Check(PyObject *obj);
+
+int cgoPySet_Check(PyObject *obj);
+
+int cgoPyTuple_Check(PyObject *obj);
+
+int cgoPyMapping_Check(PyObject *obj);
+
+int cgoPyDict_Check(PyObject *obj);
+
+int cgoPyList_Check(PyObject *obj);
 
 #endif /* PYTHON_STARLARK_GO_H */

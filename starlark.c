@@ -1,17 +1,18 @@
 #include "starlark.h"
 
 /* Declarations for object methods written in Go */
-void ConfigureStarlark(
-    int allowSet, int allowGlobalReassign, int allowRecursion
-);
+void ConfigureStarlark(int allowSet, int allowGlobalReassign, int allowRecursion);
+
+int Starlark_init(Starlark *self, PyObject *args, PyObject *kwds);
 Starlark *Starlark_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 void Starlark_dealloc(Starlark *self);
 PyObject *Starlark_eval(Starlark *self, PyObject *args);
 PyObject *Starlark_exec(Starlark *self, PyObject *args);
-PyObject *Starlark_keys(Starlark *self, PyObject *_);
+PyObject *Starlark_global_names(Starlark *self, PyObject *_);
+PyObject *Starlark_get_global(Starlark *self, PyObject *args, PyObject **kwargs);
+PyObject *Starlark_set_globals(Starlark *self, PyObject *args, PyObject **kwargs);
+PyObject *Starlark_pop_global(Starlark *self, PyObject *args, PyObject **kwargs);
 PyObject *Starlark_tp_iter(Starlark *self);
-Py_ssize_t Starlark_mp_length(Starlark *self);
-PyObject *Starlark_mp_subscript(Starlark *self, PyObject *key);
 
 /* Exceptions - the module init function will fill these in */
 PyObject *StarlarkError;
@@ -34,7 +35,7 @@ PyObject *configure_starlark(PyObject *self, PyObject *args, PyObject *kwargs)
   if (PyArg_ParseTupleAndKeywords(
           args,
           kwargs,
-          "|$ppp",
+          "|$ppp:configure_starlark",
           configure_keywords,
           &allow_set,
           &allow_global_reassign,
@@ -66,15 +67,11 @@ static PyMethodDef StarlarkGo_methods[] = {
      (PyCFunction)Starlark_exec,
      METH_VARARGS | METH_KEYWORDS,
      "Execute Starlark code, modifying the global state"},
-    {"keys", (PyCFunction)Starlark_keys, METH_NOARGS, "TODO"},
+    {"globals", (PyCFunction)Starlark_global_names, METH_NOARGS, "TODO"},
+    {"get", (PyCFunction)Starlark_get_global, METH_VARARGS | METH_KEYWORDS, "TODO"},
+    {"set", (PyCFunction)Starlark_set_globals, METH_VARARGS | METH_KEYWORDS, "TODO"},
+    {"pop", (PyCFunction)Starlark_pop_global, METH_VARARGS | METH_KEYWORDS, "TODO"},
     {NULL} /* Sentinel */
-};
-
-/* Container for object mapping methods */
-static PyMappingMethods StarlarkGo_mapping = {
-    .mp_length = Starlark_mp_length,
-    .mp_subscript = Starlark_mp_subscript,
-    .mp_ass_subscript = NULL,
 };
 
 /* Python type for object */
@@ -88,10 +85,10 @@ static PyTypeObject StarlarkType = {
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_new = (newfunc)Starlark_new,
+    .tp_init = (initproc)Starlark_init,
     .tp_dealloc = (destructor)Starlark_dealloc,
     .tp_methods = StarlarkGo_methods,
     .tp_iter = (getiterfunc)Starlark_tp_iter,
-    .tp_as_mapping = &StarlarkGo_mapping,
 };
 
 /* Module */
@@ -104,8 +101,10 @@ static PyModuleDef pystarlark_lib = {
 };
 
 /* Argument names for our methods */
+static char *init_keywords[] = {"globals", NULL};
 static char *eval_keywords[] = {"expr", "filename", "convert", NULL};
 static char *exec_keywords[] = {"defs", "filename", NULL};
+static char *get_global_keywords[] = {"name", "default", NULL};
 
 /* Helpers to allocate and free our object */
 Starlark *starlarkAlloc(PyTypeObject *type)
@@ -121,6 +120,15 @@ void starlarkFree(Starlark *self)
 }
 
 /* Helpers to parse method arguments */
+int parseInitArgs(PyObject *args, PyObject *kwargs, PyObject **globals)
+{
+  /* Necessary because Cgo can't do varargs */
+  /* One optional object */
+  return PyArg_ParseTupleAndKeywords(
+      args, kwargs, "|$O:Starlark", init_keywords, globals
+  );
+}
+
 int parseEvalArgs(
     PyObject *args,
     PyObject *kwargs,
@@ -132,18 +140,38 @@ int parseEvalArgs(
   /* Necessary because Cgo can't do varargs */
   /* One required string, folloed by an optional string and an optional bool */
   return PyArg_ParseTupleAndKeywords(
-      args, kwargs, "s|$sp", eval_keywords, expr, filename, convert
+      args, kwargs, "s|$sp:eval", eval_keywords, expr, filename, convert
   );
 }
 
-int parseExecArgs(
-    PyObject *args, PyObject *kwargs, char **defs, char **filename
-)
+int parseExecArgs(PyObject *args, PyObject *kwargs, char **defs, char **filename)
 {
   /* Necessary because Cgo can't do varargs */
   /* One required string, folloed by an optional string */
   return PyArg_ParseTupleAndKeywords(
-      args, kwargs, "s|$s", exec_keywords, defs, filename
+      args, kwargs, "s|$s:exec", exec_keywords, defs, filename
+  );
+}
+
+int parseGetGlobalArgs(
+    PyObject *args, PyObject *kwargs, char **name, PyObject **default_value
+)
+{
+  /* Necessary because Cgo can't do varargs */
+  /* One required string, full stop */
+  return PyArg_ParseTupleAndKeywords(
+      args, kwargs, "s|O:get", get_global_keywords, name, default_value
+  );
+}
+
+int parsePopGlobalArgs(
+    PyObject *args, PyObject *kwargs, char **name, PyObject **default_value
+)
+{
+  /* Necessary because Cgo can't do varargs */
+  /* One required string, full stop */
+  return PyArg_ParseTupleAndKeywords(
+      args, kwargs, "s|O:pop", get_global_keywords, name, default_value
   );
 }
 
@@ -165,9 +193,7 @@ PyObject *makeSyntaxErrorArgs(
 {
   /* Necessary because Cgo can't do varargs */
   /* Four strings and two unsigned integers */
-  return Py_BuildValue(
-      "ssssII", error_msg, error_type, msg, filename, line, column
-  );
+  return Py_BuildValue("ssssII", error_msg, error_type, msg, filename, line, column);
 }
 
 PyObject *makeEvalErrorArgs(
@@ -216,15 +242,61 @@ PyObject *cgoPy_NewRef(PyObject *obj)
   return obj;
 }
 
+int cgoPyFloat_Check(PyObject *obj)
+{
+  /* Necessary because Cgo can't do macros */
+  return PyFloat_Check(obj);
+}
+
+int cgoPyLong_Check(PyObject *obj)
+{
+  /* Necessary because Cgo can't do macros */
+  return PyLong_Check(obj);
+}
+
+int cgoPyUnicode_Check(PyObject *obj)
+{
+  /* Necessary because Cgo can't do macros */
+  return PyUnicode_Check(obj);
+}
+
+int cgoPyBytes_Check(PyObject *obj)
+{
+  /* Necessary because Cgo can't do macros */
+  return PyBytes_Check(obj);
+}
+
+int cgoPySet_Check(PyObject *obj)
+{
+  /* Necessary because Cgo can't do macros */
+  return PySet_Check(obj);
+}
+
+int cgoPyTuple_Check(PyObject *obj)
+{
+  /* Necessary because Cgo can't do macros */
+  return PyTuple_Check(obj);
+}
+
+int cgoPyDict_Check(PyObject *obj)
+{
+  /* Necessary because Cgo can't do macros */
+  return PyDict_Check(obj);
+}
+
+int cgoPyList_Check(PyObject *obj)
+{
+  /* Necessary because Cgo can't do macros */
+  return PyList_Check(obj);
+}
+
 /* Helper to fetch exception classes */
 static PyObject *get_exception_class(PyObject *errors, const char *name)
 {
   PyObject *retval = PyObject_GetAttrString(errors, name);
 
   if (retval == NULL)
-    PyErr_Format(
-        PyExc_RuntimeError, "pystarlark.errors.%s is not defined", name
-    );
+    PyErr_Format(PyExc_RuntimeError, "pystarlark.errors.%s is not defined", name);
 
   return retval;
 }

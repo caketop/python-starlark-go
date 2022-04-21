@@ -4,5 +4,5 @@ from setuptools import Extension, setup
 
 setup(
     build_golang={"root": "github.com/caketop/pystarlark"},
-    ext_modules=[Extension("pystarlark/starlark_go", ["starlark.go"])],
+    ext_modules=[Extension("pystarlark/starlark_go", ["python_object.go"])],
 )
