@@ -14,3 +14,7 @@ write_to = "src/pystarlark/scmversion.py"
 [tool.isort]
 profile = "black"
 lines_between_types = 1
+
+[tool.cibuildwheel]
+test-requires = "pytest"
+test-command = "pytest {project}/tests"
