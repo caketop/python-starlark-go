@@ -1,0 +1,13 @@
+# Try to bend clang-format into formatting C like black formats Python
+---
+BasedOnStyle: LLVM
+AllowShortIfStatementsOnASingleLine: true
+AllowShortBlocksOnASingleLine: true
+AllowShortFunctionsOnASingleLine: false
+BreakBeforeBraces: Linux
+ReflowComments: true
+BinPackArguments: false
+BinPackParameters: false
+AlignAfterOpenBracket: BlockIndent
+AllowAllArgumentsOnNextLine: true
+Cpp11BracedListStyle: true
