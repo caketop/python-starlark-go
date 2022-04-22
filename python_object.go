@@ -11,8 +11,10 @@ extern PyObject *ResolveError;
 import "C"
 
 import (
+	"fmt"
 	"math/rand"
 	"sync"
+	"unsafe"
 
 	"go.starlark.net/resolve"
 	"go.starlark.net/starlark"
@@ -102,6 +104,30 @@ func Starlark_new(pytype *C.PyTypeObject, args *C.PyObject, kwargs *C.PyObject) 
 	self.state_id = C.ulong(stateId)
 	STATE[stateId] = &StarlarkState{Globals: starlark.StringDict{}, Mutex: sync.RWMutex{}}
 	return self
+}
+
+//export Starlark_init
+func Starlark_init(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject) C.int {
+	var globals *C.PyObject = nil
+	if C.parseInitArgs(args, kwargs, &globals) == 0 {
+		return -1
+	}
+
+	if globals != nil {
+		if C.PyMapping_Check(globals) != 1 {
+			errmsg := C.CString(fmt.Sprintf("Can't initialize globals from %s", C.GoString(globals.ob_type.tp_name)))
+			defer C.free(unsafe.Pointer(errmsg))
+			C.PyErr_SetString(C.PyExc_TypeError, errmsg)
+			return -1
+		}
+
+		retval := Starlark_set_globals(self, args, globals)
+		if retval == nil {
+			return -1
+		}
+	}
+
+	return 0
 }
 
 //export Starlark_dealloc

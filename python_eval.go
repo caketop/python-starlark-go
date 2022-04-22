@@ -97,6 +97,7 @@ func Starlark_exec(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject) *C.Py
 	}
 
 	for k, v := range newGlobals {
+		v.Freeze()
 		state.Globals[k] = v
 	}
 
