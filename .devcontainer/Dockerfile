@@ -13,7 +13,8 @@ FROM ${BASE_IMAGE} AS packages
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get upgrade -y && apt-get install -y \
+RUN apt-get update && apt-get upgrade -y && \
+  apt-get install -y \
   build-essential gdb less libffi-dev valgrind \
   curl ca-certificates gnupg2 tar g++ gcc libc6-dev make pkg-config
 
@@ -32,7 +33,8 @@ RUN tar -C /opt -xvf /usr/src/go.tar.gz
 FROM packages AS builder
 
 COPY --from=go_install /opt/go/ /opt/go/
-ENV PATH=/opt/go/bin:$PATH
+
+ENV PATH=/opt/go/bin:/opt/valgrind/bin:$PATH
 
 ARG USERNAME USER_UID USER_GID
 
@@ -83,7 +85,11 @@ RUN echo "set auto-load safe-path /" > /home/${USERNAME}/.gdbinit
 
 COPY --from=go_tools /home/${USERNAME}/go/bin/ /home/${USERNAME}/go/bin
 
-RUN python3.10 -m pip install --user black isort memray pytest tox
+RUN python3.10 -m venv /home/${USERNAME}/venv
+
+ENV PATH=/home/${USERNAME}/venv/bin:/opt/python/cp310-cp310/bin:${PATH}
+
+RUN python3.10 -m pip install black ipython isort memray pytest pytest-memray pytest-valgrind tox
 
 COPY --from=misc /tmp/shellcheck/shellcheck /home/${USERNAME}/.local/bin/shellcheck
 COPY --from=misc /tmp/mcfly/mcfly /home/${USERNAME}/.local/bin/mcfly
@@ -92,4 +98,4 @@ COPY --from=misc /tmp/clang/bin/clang-format /home/${USERNAME}/.local/bin/clang-
 RUN echo 'eval "$(mcfly init bash)"' >> ~/.bashrc && touch ~/.bash_history
 RUN echo 'eval "$(starship init bash)"' >> ~/.bashrc
 
-ENV PATH=/home/${USERNAME}/go/bin:/home/${USERNAME}/.local/bin:/opt/python/cp310-cp310/bin:$PATH
+ENV PATH=/home/${USERNAME}/go/bin:/home/${USERNAME}/.local/bin:$PATH
