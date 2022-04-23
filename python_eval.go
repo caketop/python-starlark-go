@@ -15,17 +15,22 @@ import (
 func Starlark_eval(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject) *C.PyObject {
 	var (
 		expr       *C.char
-		filename   *C.char = nil
-		convert    C.uint  = 1
-		goFilename string  = "<expr>"
+		filename   *C.char     = nil
+		convert    C.uint      = 1
+		print      *C.PyObject = nil
+		goFilename string      = "<expr>"
 	)
 
-	if C.parseEvalArgs(args, kwargs, &expr, &filename, &convert) == 0 {
+	if C.parseEvalArgs(args, kwargs, &expr, &filename, &convert, &print) == 0 {
+		return nil
+	}
+
+	print = pythonPrint(self, print)
+	if print == nil {
 		return nil
 	}
 
 	goExpr := C.GoString(expr)
-
 	if filename != nil {
 		goFilename = C.GoString(filename)
 	}
@@ -36,8 +41,14 @@ func Starlark_eval(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject) *C.Py
 	}
 	defer state.Mutex.RUnlock()
 
-	thread := &starlark.Thread{}
 	pyThread := C.PyEval_SaveThread()
+	starlarkPrint := func(_ *starlark.Thread, msg string) {
+		C.PyEval_RestoreThread(pyThread)
+		callPythonPrint(print, msg)
+		pyThread = C.PyEval_SaveThread()
+	}
+
+	thread := &starlark.Thread{Print: starlarkPrint}
 	result, err := starlark.Eval(thread, goFilename, goExpr, state.Globals)
 	C.PyEval_RestoreThread(pyThread)
 
@@ -59,11 +70,17 @@ func Starlark_eval(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject) *C.Py
 func Starlark_exec(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject) *C.PyObject {
 	var (
 		defs       *C.char
-		filename   *C.char = nil
-		goFilename string  = "<expr>"
+		filename   *C.char     = nil
+		print      *C.PyObject = nil
+		goFilename string      = "<expr>"
 	)
 
-	if C.parseExecArgs(args, kwargs, &defs, &filename) == 0 {
+	if C.parseExecArgs(args, kwargs, &defs, &filename, &print) == 0 {
+		return nil
+	}
+
+	print = pythonPrint(self, print)
+	if print == nil {
 		return nil
 	}
 
@@ -80,6 +97,12 @@ func Starlark_exec(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject) *C.Py
 	defer state.Mutex.Unlock()
 
 	pyThread := C.PyEval_SaveThread()
+	starlarkPrint := func(_ *starlark.Thread, msg string) {
+		C.PyEval_RestoreThread(pyThread)
+		callPythonPrint(print, msg)
+		pyThread = C.PyEval_SaveThread()
+	}
+
 	_, program, err := starlark.SourceProgram(goFilename, goDefs, state.Globals.Has)
 	if err != nil {
 		C.PyEval_RestoreThread(pyThread)
@@ -87,7 +110,7 @@ func Starlark_exec(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject) *C.Py
 		return nil
 	}
 
-	thread := &starlark.Thread{}
+	thread := &starlark.Thread{Print: starlarkPrint}
 	newGlobals, err := program.Init(thread, state.Globals)
 	C.PyEval_RestoreThread(pyThread)
 

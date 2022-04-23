@@ -8,12 +8,43 @@
 {
    go-runtime-adjustpointer
    Memcheck:Cond
-   fun:runtime.adjustpointer
+   fun:runtime.adjustpointer*
    obj:*
 }
 
 {
-   go-runtime-asyncPreempt
+   go-runtime-adjustpointer-Addr8
+   Memcheck:Addr8
+   fun:runtime.adjustpointer*
+   obj:*
+}
+
+{
+   go-runtime-asyncPreempt-Addr8
    Memcheck:Addr8
    fun:runtime.asyncPreempt.abi0
+}
+
+{
+   go-runtime-asyncPreempt-Addr16
+   Memcheck:Addr16
+   fun:runtime.asyncPreempt.abi0
+}
+
+{
+   starlark-addr4
+   Memcheck:Addr4
+   fun:go.starlark.net/*
+}
+
+{
+   starlark-addr8
+   Memcheck:Addr8
+   fun:go.starlark.net/*
+}
+
+{
+   starlark-addr32
+   Memcheck:Addr32
+   fun:go.starlark.net/*
 }

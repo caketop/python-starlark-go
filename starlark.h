@@ -16,17 +16,22 @@ Starlark *starlarkAlloc(PyTypeObject *type);
 
 void starlarkFree(Starlark *self);
 
-int parseInitArgs(PyObject *args, PyObject *kwargs, PyObject **globals);
+int parseInitArgs(
+    PyObject *args, PyObject *kwargs, PyObject **globals, PyObject **print
+);
 
 int parseEvalArgs(
     PyObject *args,
     PyObject *kwargs,
     char **expr,
     char **filename,
-    unsigned int *convert
+    unsigned int *convert,
+    PyObject **print
 );
 
-int parseExecArgs(PyObject *args, PyObject *kwargs, char **defs, char **filename);
+int parseExecArgs(
+    PyObject *args, PyObject *kwargs, char **defs, char **filename, PyObject **print
+);
 
 int parseGetGlobalArgs(
     PyObject *args, PyObject *kwargs, char **name, PyObject **default_value
