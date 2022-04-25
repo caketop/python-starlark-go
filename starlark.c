@@ -12,6 +12,8 @@ PyObject *Starlark_global_names(Starlark *self, PyObject *_);
 PyObject *Starlark_get_global(Starlark *self, PyObject *args, PyObject **kwargs);
 PyObject *Starlark_set_globals(Starlark *self, PyObject *args, PyObject **kwargs);
 PyObject *Starlark_pop_global(Starlark *self, PyObject *args, PyObject **kwargs);
+PyObject *Starlark_get_print(Starlark *self, void *closure);
+int Starlark_set_print(Starlark *self, PyObject *value, void *closure);
 PyObject *Starlark_tp_iter(Starlark *self);
 
 /* Exceptions - the module init function will fill these in */
@@ -74,6 +76,11 @@ static PyMethodDef StarlarkGo_methods[] = {
     {NULL} /* Sentinel */
 };
 
+static PyGetSetDef Starlark_getset[] = {
+    {"print", (getter)Starlark_get_print, (setter)Starlark_set_print, "TODO", NULL},
+    {NULL},
+};
+
 /* Python type for object */
 static PyTypeObject StarlarkType = {
     // clang-format off
@@ -89,6 +96,7 @@ static PyTypeObject StarlarkType = {
     .tp_dealloc = (destructor)Starlark_dealloc,
     .tp_methods = StarlarkGo_methods,
     .tp_iter = (getiterfunc)Starlark_tp_iter,
+    .tp_getset = Starlark_getset,
 };
 
 /* Module */
@@ -101,9 +109,9 @@ static PyModuleDef pystarlark_lib = {
 };
 
 /* Argument names for our methods */
-static char *init_keywords[] = {"globals", NULL};
-static char *eval_keywords[] = {"expr", "filename", "convert", NULL};
-static char *exec_keywords[] = {"defs", "filename", NULL};
+static char *init_keywords[] = {"globals", "print", NULL};
+static char *eval_keywords[] = {"expr", "filename", "convert", "print", NULL};
+static char *exec_keywords[] = {"defs", "filename", "print", NULL};
 static char *get_global_keywords[] = {"name", "default", NULL};
 
 /* Helpers to allocate and free our object */
@@ -120,12 +128,14 @@ void starlarkFree(Starlark *self)
 }
 
 /* Helpers to parse method arguments */
-int parseInitArgs(PyObject *args, PyObject *kwargs, PyObject **globals)
+int parseInitArgs(
+    PyObject *args, PyObject *kwargs, PyObject **globals, PyObject **print
+)
 {
   /* Necessary because Cgo can't do varargs */
   /* One optional object */
   return PyArg_ParseTupleAndKeywords(
-      args, kwargs, "|$O:Starlark", init_keywords, globals
+      args, kwargs, "|$OO:Starlark", init_keywords, globals, print
   );
 }
 
@@ -134,22 +144,25 @@ int parseEvalArgs(
     PyObject *kwargs,
     char **expr,
     char **filename,
-    unsigned int *convert
+    unsigned int *convert,
+    PyObject **print
 )
 {
   /* Necessary because Cgo can't do varargs */
   /* One required string, folloed by an optional string and an optional bool */
   return PyArg_ParseTupleAndKeywords(
-      args, kwargs, "s|$sp:eval", eval_keywords, expr, filename, convert
+      args, kwargs, "s|$spO:eval", eval_keywords, expr, filename, convert, print
   );
 }
 
-int parseExecArgs(PyObject *args, PyObject *kwargs, char **defs, char **filename)
+int parseExecArgs(
+    PyObject *args, PyObject *kwargs, char **defs, char **filename, PyObject **print
+)
 {
   /* Necessary because Cgo can't do varargs */
   /* One required string, folloed by an optional string */
   return PyArg_ParseTupleAndKeywords(
-      args, kwargs, "s|$s:exec", exec_keywords, defs, filename
+      args, kwargs, "s|$sO:exec", exec_keywords, defs, filename, print
   );
 }
 
