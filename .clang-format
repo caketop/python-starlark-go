@@ -11,3 +11,5 @@ BinPackParameters: false
 AlignAfterOpenBracket: BlockIndent
 AllowAllArgumentsOnNextLine: true
 Cpp11BracedListStyle: true
+ColumnLimit: 88
+PenaltyReturnTypeOnItsOwnLine: 1000
