@@ -102,8 +102,8 @@ func Starlark_new(pytype *C.PyTypeObject, args *C.PyObject, kwargs *C.PyObject) 
 		}
 	}
 
-	self.state_id = C.ulong(stateId)
-	STATE[stateId] = &StarlarkState{Globals: starlark.StringDict{}, Mutex: sync.RWMutex{}}
+	self.state_id = C.uint64_t(stateId)
+	STATE[stateId] = &StarlarkState{Globals: starlark.StringDict{}, Mutex: sync.RWMutex{}, Print: nil}
 	return self
 }
 
@@ -145,7 +145,11 @@ func Starlark_dealloc(self *C.Starlark) {
 	defer STATE_MUTEX.Unlock()
 
 	stateId := uint64(self.state_id)
-	state := STATE[stateId]
+	state, ok := STATE[stateId]
+
+	if !ok {
+		panic(fmt.Errorf("Unknown state: %d (%d)", stateId, self.state_id))
+	}
 
 	state.Mutex.Lock()
 	defer state.Mutex.Unlock()

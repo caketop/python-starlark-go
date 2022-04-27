@@ -1,6 +1,7 @@
 #ifndef PYTHON_STARLARK_GO_H
 #define PYTHON_STARLARK_GO_H
 
+#include <stdint.h>
 #include <stdlib.h>
 #define PY_SSIZE_T_CLEAN
 #undef Py_LIMITED_API
@@ -8,7 +9,7 @@
 
 /* Starlark object */
 typedef struct Starlark {
-  PyObject_HEAD unsigned long state_id;
+  PyObject_HEAD uint64_t state_id;
 } Starlark;
 
 /* Helpers for Cgo, which can't handle varargs or macros */
