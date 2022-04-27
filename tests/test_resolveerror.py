@@ -1,4 +1,4 @@
-from pystarlark import ResolveError, Starlark
+from starlark_go import ResolveError, Starlark
 
 
 def test_eval_resolveerror():

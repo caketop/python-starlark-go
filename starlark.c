@@ -50,12 +50,217 @@ PyObject *configure_starlark(PyObject *self, PyObject *args, PyObject *kwargs)
   Py_RETURN_NONE;
 }
 
+PyDoc_STRVAR(
+    configure_starlark_doc,
+    "configure_starlark(*, allow_set=None, allow_global_reassign=None, "
+    "allow_recursion=None)\n--\n\n"
+    "Change what features the Starlark interpreter allows. Unfortunately, "
+    "this manipulates global variables, and affects all Starlark interpreters "
+    "in your application. It is not possible to have one Starlark "
+    "interpreter with ``allow_set=True`` and another with ``allow_set=False`` "
+    "simultaneously.\n\n"
+    "All feature flags are initially ``False``.\n\n"
+    "See the `starlark-go documentation "
+    "<https://pkg.go.dev/go.starlark.net/resolve#pkg-variables>`_ for "
+    "more information.\n\n"
+    ":param allow_set: If ``True``, allow the creation of `set "
+    "<https://github.com/google/starlark-go/blob/master/doc/spec.md#sets=>`_ objects "
+    "in Starlark.\n"
+    ":type allow_set: typing.Optional[bool]\n"
+    ":param allow_global_reassign: If ``True``, allow reassignment to top-level names; "
+    "also, allow if/for/while at top-level.\n"
+    ":type allow_global_reassign:  typing.Optional[bool]\n"
+    ":param allow_recursion: If ``True``, allow while statements and recursive "
+    "functions.\n"
+    ":type allow_recursion:  typing.Optional[bool]\n"
+);
+
+/* Argument names and documentation for our methods */
+static char *init_keywords[] = {"globals", "print", NULL};
+
+PyDoc_STRVAR(
+    Starlark_init_doc,
+    "Starlark(*, globals=None, print=None)\n--\n\n"
+    "Create a Starlark object. A Starlark object contains a set of global variables, "
+    "which can be manipulated by executing Starlark code.\n\n"
+    ":param globals: Initial set of global variables. Keys must be strings. Values can "
+    "be any type supported by :func:`set`.\n"
+    ":type globals: typing.Mapping[str, typing.Any]\n"
+    ":param print: A function to call in place of Starlark's ``print()`` function. If "
+    "unspecified, Starlark's ``print()`` function will be forwarded to Python's "
+    "built-in :py:func:`python:print`.\n"
+    ":type print: typing.Callable[[str], typing.Any]\n"
+);
+
+static char *eval_keywords[] = {"expr", "filename", "convert", "print", NULL};
+
+PyDoc_STRVAR(
+    Starlark_eval_doc,
+    "eval(self, expr, *, filename=None, convert=True, print=None)\n--\n\n"
+    "Evaluate a Starlark expression. The expression passed to ``eval`` must evaluate "
+    "to a value. Function definitions, variable assignments, and control structures "
+    "are not allowed by ``eval``. To use those, please use func:`exec`.\n\n"
+    ":param expr: A string containing a Starlark expression to evaluate\n"
+    ":type expr: str\n"
+    ":param filename: An optional filename to use in exceptions, if evaluting the "
+    "expression fails.\n"
+    ":type filename: typing.Optional[str]\n"
+    ":param convert: If True, convert the result of the expression into a Python "
+    "value. If False, return a string containing the representation of the expression "
+    "in Starlark. Defaults to True.\n"
+    ":type convert: bool\n"
+    ":param print: A function to call in place of Starlark's ``print()`` function. If "
+    "unspecified, Starlark's ``print()`` function will be forwarded to Python's "
+    "built-in :py:func:`python:print`.\n"
+    ":type print: typing.Callable[[str], typing.Any]\n"
+    ":raises EvalError: if there is a Starlark evaluation error\n"
+    ":raises ResolveError: if there is a Starlark resolution error\n"
+    ":raises SyntaxError: if there is a Starlark syntax error\n"
+    ":raises StarlarkError: if there is an unexpected error\n"
+    ":rtype: typing.Any\n"
+);
+
+static char *exec_keywords[] = {"defs", "filename", "print", NULL};
+
+PyDoc_STRVAR(
+    Starlark_exec_doc,
+    "exec(self, defs, *, filename=None, print=None)\n--\n\n"
+    "Execute Starlark code. All legal Starlark constructs may be used with "
+    "``exec``.\n\n"
+    "``exec`` does not return a value. To evaluate the value of a Starlark expression, "
+    "please use func:`eval`.\n\n"
+    ":param defs: A string containing Starlark code to execute\n"
+    ":type defs: str\n"
+    ":param filename: An optional filename to use in exceptions, if evaluting the "
+    "expression fails.\n"
+    ":type filename: Optional[str]\n"
+    ":param print: A function to call in place of Starlark's ``print()`` function. If "
+    "unspecified, Starlark's ``print()`` function will be forwarded to Python's "
+    "built-in :py:func:`python:print`.\n"
+    ":type print: typing.Callable[[str], typing.Any]\n"
+    ":raises ConversionError: if the value is of an unsupported type for conversion.\n"
+    ":raises EvalError: if there is a Starlark evaluation error\n"
+    ":raises ResolveError: if there is a Starlark resolution error\n"
+    ":raises SyntaxError: if there is a Starlark syntax error\n"
+    ":raises StarlarkError: if there is an unexpected error\n"
+);
+
+static char *get_global_keywords[] = {"name", "default", NULL};
+
+PyDoc_STRVAR(
+    Starlark_get_doc,
+    "get(self, name, default_value = ...)\n--\n\n"
+    "Get the value of a Starlark global variable.\n\n"
+    "Conversion from most Starlark data types is supported:\n\n"
+    "* Starlark `None <https://pkg.go.dev/go.starlark.net/starlark#None>`_ to "
+    "Python :py:obj:`python:None`\n"
+    "* Starlark `bool <https://pkg.go.dev/go.starlark.net/starlark#Bool>`_ to "
+    "Python :py:obj:`python:bool`\n"
+    "* Starlark `bytes <https://pkg.go.dev/go.starlark.net/starlark#Bytes>`_ to "
+    "Python :py:obj:`python:bytes`\n"
+    "* Starlark `float <https://pkg.go.dev/go.starlark.net/starlark#Float>`_ to "
+    "Python :py:obj:`python:float`\n"
+    "* Starlark `int <https://pkg.go.dev/go.starlark.net/starlark#Int>`_ to "
+    "Python :py:obj:`python:int`\n"
+    "* Starlark `string <https://pkg.go.dev/go.starlark.net/starlark#String>`_ to "
+    "Python :py:obj:`python:str`\n"
+    "* Starlark `dict <https://pkg.go.dev/go.starlark.net/starlark#Dict>`_ (and "
+    "`IterableMapping <https://pkg.go.dev/go.starlark.net/starlark#IterableMapping>`_) "
+    "to Python :py:obj:`python:dict`\n"
+    "* Starlark `list <https://pkg.go.dev/go.starlark.net/starlark#List>`_ (and "
+    "`Iterable <https://pkg.go.dev/go.starlark.net/starlark#Iterable>`_) to "
+    "Python :py:obj:`python:list`\n"
+    "* Starlark `set <https://pkg.go.dev/go.starlark.net/starlark#Set>`_ to "
+    "Python :py:obj:`python:set`\n"
+    "* Starlark `tuple <https://pkg.go.dev/go.starlark.net/starlark#Tuple>`_ to "
+    "Python :py:obj:`python:tuple`\n\n"
+    "For the aggregate types (``dict``, ``list``, ``set``, and ``tuple``,) all keys "
+    "and/or values must also be one of the supported types.\n\n"
+    "Attempting to get the value of any other Starlark type will raise a "
+    ":py:class:`ConversionError`.\n\n"
+    ":param name: The name of the global variable.\n"
+    ":type name: str\n"
+    ":param default_value: A default value to return, if no global variable named "
+    "``name`` is defined.\n"
+    ":type default_value: typing.Any\n"
+    ":raises KeyError: if there is no global value named ``name`` defined.\n"
+    ":raises ConversionError: if the value is of an unsupported type for conversion.\n"
+    ":rtype: typing.Any\n"
+);
+
+PyDoc_STRVAR(
+    Starlark_globals_doc,
+    "globals(self)\n--\n\n"
+    "Get the names of the currently defined global variables.\n\n"
+    ":rtype: typing.List[str]\n"
+);
+
+PyDoc_STRVAR(
+    Starlark_set_doc,
+    "set(self, **kwargs)\n--\n\n"
+    "Set the value of one or more Starlark global variables.\n\n"
+    "For each keyword parameter specified, one global variable is set.\n\n"
+    "Conversion from most basic Python types is supported:\n\n"
+    "* Python :py:obj:`python:None` to Starlark `None "
+    "<https://pkg.go.dev/go.starlark.net/starlark#None>`_\n"
+    "* Python :py:obj:`python:bool` to Starlark `bool "
+    "<https://pkg.go.dev/go.starlark.net/starlark#Bool>`_\n"
+    "* Python :py:obj:`python:bytes` to Starlark `bytes "
+    "<https://pkg.go.dev/go.starlark.net/starlark#Bytes>`_\n"
+    "* Python :py:obj:`python:float` to Starlark `float "
+    "<https://pkg.go.dev/go.starlark.net/starlark#Float>`_\n"
+    "* Python :py:obj:`python:int` to Starlark `int "
+    "<https://pkg.go.dev/go.starlark.net/starlark#Int>`_\n"
+    "* Python :py:obj:`python:str` to Starlark `string "
+    "<https://pkg.go.dev/go.starlark.net/starlark#String>`_\n"
+    "* Python :py:obj:`python:dict` (and other objects that implement the mapping "
+    "protocol) to Starlark "
+    "`dict <https://pkg.go.dev/go.starlark.net/starlark#Dict>`_\n"
+    "* Python :py:obj:`python:list` (and other objects that implement the sequence "
+    "protocol) to Starlark "
+    "`list <https://pkg.go.dev/go.starlark.net/starlark#List>`_\n"
+    "* Python :py:obj:`python:set` to Starlark `set "
+    "<https://pkg.go.dev/go.starlark.net/starlark#Set>`_\n"
+    "* Python :py:obj:`python:tuple` to Starlark `tuple "
+    "<https://pkg.go.dev/go.starlark.net/starlark#Tuple>`_\n\n"
+    "For the aggregate types (``dict``, ``list``, ``set``, and ``tuple``,) all keys "
+    "and/or values must also be one of the supported types.\n\n"
+    "Attempting to set a value of any other Python type will raise a "
+    ":py:class:`ConversionError`.\n\n"
+    ":raises ConversionError: if a value is of an unsupported type for conversion.\n"
+);
+
+PyDoc_STRVAR(
+    Starlark_pop_doc,
+    "pop(self, name, default_value = ...)\n--\n\n"
+    "Remove a Starlark global variable, and return its value.\n\n"
+    "If a value of ``name`` does not exist, and no ``default_value`` has been "
+    "specified, raise :py:obj:`python:KeyError`. Otherwise, return "
+    "``default_value``.\n\n"
+    ":param name: The name of the global variable.\n"
+    ":type name: str\n"
+    ":param default_value: A default value to return, if no global variable named "
+    "``name`` is defined.\n"
+    ":type default_value: typing.Any\n"
+    ":raises KeyError: if there is no global value named ``name`` defined.\n"
+    ":raises ConversionError: if the value is of an unsupported type for conversion.\n"
+    ":rtype: typing.Any\n"
+);
+
+PyDoc_STRVAR(
+    Starlark_print_doc,
+    "A function to call in place of Starlark's ``print()`` function. If "
+    "unspecified, Starlark's ``print()`` function will be forwarded to Python's "
+    "built-in :py:func:`python:print`.\n\n"
+    ":type: typing.Callable[[str], typing.Any]\n"
+);
+
 /* Container for module methods */
 static PyMethodDef module_methods[] = {
     {"configure_starlark",
      (PyCFunction)configure_starlark,
      METH_VARARGS | METH_KEYWORDS,
-     "Configure the starlark interpreter"},
+     configure_starlark_doc},
     {NULL} /* Sentinel */
 };
 
@@ -64,20 +269,33 @@ static PyMethodDef StarlarkGo_methods[] = {
     {"eval",
      (PyCFunction)Starlark_eval,
      METH_VARARGS | METH_KEYWORDS,
-     "Evaluate a Starlark expression"},
+     Starlark_eval_doc},
     {"exec",
      (PyCFunction)Starlark_exec,
      METH_VARARGS | METH_KEYWORDS,
-     "Execute Starlark code, modifying the global state"},
-    {"globals", (PyCFunction)Starlark_global_names, METH_NOARGS, "TODO"},
-    {"get", (PyCFunction)Starlark_get_global, METH_VARARGS | METH_KEYWORDS, "TODO"},
-    {"set", (PyCFunction)Starlark_set_globals, METH_VARARGS | METH_KEYWORDS, "TODO"},
-    {"pop", (PyCFunction)Starlark_pop_global, METH_VARARGS | METH_KEYWORDS, "TODO"},
+     Starlark_exec_doc},
+    {"globals", (PyCFunction)Starlark_global_names, METH_NOARGS, Starlark_globals_doc},
+    {"get",
+     (PyCFunction)Starlark_get_global,
+     METH_VARARGS | METH_KEYWORDS,
+     Starlark_get_doc},
+    {"set",
+     (PyCFunction)Starlark_set_globals,
+     METH_VARARGS | METH_KEYWORDS,
+     Starlark_set_doc},
+    {"pop",
+     (PyCFunction)Starlark_pop_global,
+     METH_VARARGS | METH_KEYWORDS,
+     Starlark_pop_doc},
     {NULL} /* Sentinel */
 };
 
 static PyGetSetDef Starlark_getset[] = {
-    {"print", (getter)Starlark_get_print, (setter)Starlark_set_print, "TODO", NULL},
+    {"print",
+     (getter)Starlark_get_print,
+     (setter)Starlark_set_print,
+     Starlark_print_doc,
+     NULL},
     {NULL},
 };
 
@@ -85,9 +303,9 @@ static PyGetSetDef Starlark_getset[] = {
 static PyTypeObject StarlarkType = {
     // clang-format off
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "pystarlark.starlark_go.Starlark",
+    .tp_name = "starlark_go.starlark_go.Starlark",
     // clang-format on
-    .tp_doc = "Starlark interpreter",
+    .tp_doc = Starlark_init_doc,
     .tp_basicsize = sizeof(Starlark),
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
@@ -100,19 +318,13 @@ static PyTypeObject StarlarkType = {
 };
 
 /* Module */
-static PyModuleDef pystarlark_lib = {
+static PyModuleDef starlark_go = {
     PyModuleDef_HEAD_INIT,
-    .m_name = "pystarlark.starlark_go",
+    .m_name = "starlark_go.starlark_go",
     .m_doc = "Interface to starlark-go",
     .m_size = -1,
     .m_methods = module_methods,
 };
-
-/* Argument names for our methods */
-static char *init_keywords[] = {"globals", "print", NULL};
-static char *eval_keywords[] = {"expr", "filename", "convert", "print", NULL};
-static char *exec_keywords[] = {"defs", "filename", "print", NULL};
-static char *get_global_keywords[] = {"name", "default", NULL};
 
 /* Helpers to allocate and free our object */
 Starlark *starlarkAlloc(PyTypeObject *type)
@@ -309,7 +521,7 @@ static PyObject *get_exception_class(PyObject *errors, const char *name)
   PyObject *retval = PyObject_GetAttrString(errors, name);
 
   if (retval == NULL)
-    PyErr_Format(PyExc_RuntimeError, "pystarlark.errors.%s is not defined", name);
+    PyErr_Format(PyExc_RuntimeError, "starlark_go.errors.%s is not defined", name);
 
   return retval;
 }
@@ -317,7 +529,7 @@ static PyObject *get_exception_class(PyObject *errors, const char *name)
 /* Module initialization */
 PyMODINIT_FUNC PyInit_starlark_go(void)
 {
-  PyObject *errors = PyImport_ImportModule("pystarlark.errors");
+  PyObject *errors = PyImport_ImportModule("starlark_go.errors");
   if (errors == NULL) return NULL;
 
   StarlarkError = get_exception_class(errors, "StarlarkError");
@@ -341,7 +553,7 @@ PyMODINIT_FUNC PyInit_starlark_go(void)
   PyObject *m;
   if (PyType_Ready(&StarlarkType) < 0) return NULL;
 
-  m = PyModule_Create(&pystarlark_lib);
+  m = PyModule_Create(&starlark_go);
   if (m == NULL) return NULL;
 
   Py_INCREF(&StarlarkType);

@@ -1,4 +1,4 @@
-from pystarlark import Starlark
+from starlark_go import Starlark
 
 
 def test_fibonacci():

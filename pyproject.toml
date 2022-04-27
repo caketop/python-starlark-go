@@ -9,7 +9,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
 local_scheme = "no-local-version"
-write_to = "src/pystarlark/scmversion.py"
+write_to = "src/starlark_go/scmversion.py"
 
 [tool.isort]
 profile = "black"

@@ -1,21 +1,23 @@
-from pystarlark.errors import (
+from starlark_go.errors import (
     ConversionError,
     EvalError,
     ResolveError,
+    ResolveErrorItem,
     StarlarkError,
     SyntaxError,
 )
-from pystarlark.starlark_go import (  # pyright: reportMissingModuleSource=false
+from starlark_go.starlark_go import (  # pyright: reportMissingModuleSource=false
     Starlark,
     configure_starlark,
 )
 
 __all__ = [
-    "Starlark",
     "configure_starlark",
+    "Starlark",
+    "StarlarkError",
     "ConversionError",
     "EvalError",
     "ResolveError",
-    "StarlarkError",
+    "ResolveErrorItem",
     "SyntaxError",
 ]
