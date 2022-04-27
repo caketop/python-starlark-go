@@ -1,4 +1,4 @@
-module github.com/caketop/pystarlark
+module github.com/caketop/python-starlark-go
 
 go 1.18
 

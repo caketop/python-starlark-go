@@ -1,6 +1,6 @@
 import pytest
 
-from pystarlark import Starlark, SyntaxError
+from starlark_go import Starlark, SyntaxError
 
 
 def test_raises_syntaxerror():

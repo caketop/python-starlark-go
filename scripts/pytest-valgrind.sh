@@ -18,11 +18,11 @@ fi
 "$VALGRIND_PYTHON" -m pip install .
 
 # Nasty hack - rebuild with all the debugging symbols
-PYSTARLARK_SO="$VALGRIND_ROOT/lib/python3.10/site-packages/pystarlark/starlark_go.cpython-310-x86_64-linux-gnu.so"
-rm "$PYSTARLARK_SO"
+MY_SO="$VALGRIND_ROOT/lib/python3.10/site-packages/starlark_go/starlark_go.cpython-310-x86_64-linux-gnu.so"
+rm "$MY_SO"
 env CGO_CFLAGS="-g -O0 $(python3-config --includes)" \
   CGO_LDFLAGS=-Wl,--unresolved-symbols=ignore-all \
-  go build -buildmode=c-shared -o "$PYSTARLARK_SO"
+  go build -buildmode=c-shared -o "$MY_SO"
 
 # Remove old log and then run valgrind
 rm -f "$VALGRIND_LOG"

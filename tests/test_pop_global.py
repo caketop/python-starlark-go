@@ -1,6 +1,6 @@
 import pytest
 
-from pystarlark import Starlark
+from starlark_go import Starlark
 
 
 def test_pop_global():

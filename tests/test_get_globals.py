@@ -1,7 +1,7 @@
 import pytest
 
-from pystarlark import Starlark, configure_starlark
-from pystarlark.errors import ResolveError
+from starlark_go import Starlark, configure_starlark
+from starlark_go.errors import ResolveError
 
 NESTED = [{"one": (1, 1, 1), "two": [2, {"two": 2222.22}]}, ("a", "b", "c")]
 NESTED_STR = '[{"one": (1, 1, 1), "two": [2, {"two": 2222.22}]}, ("a", "b", "c")]'

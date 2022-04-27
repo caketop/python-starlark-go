@@ -1,6 +1,6 @@
 import pytest
 
-from pystarlark import EvalError, Starlark, configure_starlark
+from starlark_go import EvalError, Starlark, configure_starlark
 
 RFIB = """
 def rfib(n):

@@ -1,19 +1,31 @@
-# pystarlark (Caketop fork)
+# python-starlark-go
 
-An experimental fork of experimental Python bindings for [starlark-go](https://github.com/google/starlark-go).
+## Introduction
 
-Upstream is at https://github.com/ColdHeat/pystarlark - that's the version on PyPI.
+This module provides Python bindings for the Starlark programming language.
+
+Starlark is a dialect of Python designed for hermetic execution and deterministic evaluation. That means you can run Starlark code you don't trust without worrying about it being able access any data you did not explicitly supply to it, and that you can count on the same code to always produce the same value when used with the same input data. Starlark was orginally created for the [Bazel build system](https://bazel.build/). There are now several implementations of Starlark; this module is built on [starlark-go](https://github.com/google/starlark-go).
+
+This module was originally forked from Kevin Chung's [pystarlark](https://github.com/ColdHeat/pystarlark).
+
+## Features
+
+- Evalutes Starlark code from Python
+- Translates Starlark exceptions to Python exceptions
+- Converts Starlark values to Python values
+- Converts Python values to Starlark values
+- No runtime dependencies - cgo is used to bundle [starlark-go](https://github.com/google/starlark-go) into a Python extension
 
 ## Installation
 
 ```
-pip install pystarlark
+pip install starlark-go
 ```
 
-## Examples
+## Usage
 
 ```python
-from pystarlark import Starlark
+from starlark_go import Starlark
 
 s = Starlark()
 fibonacci = """
@@ -25,47 +37,8 @@ def fibonacci(n=10):
 """
 s.exec(fibonacci)
 s.eval("fibonacci(5)")  # [0, 1, 1, 2, 3]
+
+s.set(x=5)
+s.eval("x") # 5
+s.eval("fibonacci(x)")  # [0, 1, 1, 2, 3]
 ```
-
-## How does this work?
-
-pystarlark is a binding to [starlark-go](https://github.com/google/starlark-go) through a shared library built through cgo.
-
-## What is Starlark?
-
-Starlark is a Python-like language created by Google for its build system, Bazel. Starlark, while similar to Python, has some features that Python does not. Copied from the [main Starlark repo](https://github.com/bazelbuild/starlark#design-principles):
-
->  ## Design Principles
->
-> *   **Deterministic evaluation**. Executing the same code twice will give the
->     same results.
-> *   **Hermetic execution**. Execution cannot access the file system, network,
->     system clock. It is safe to execute untrusted code.
-> *   **Parallel evaluation**. Modules can be loaded in parallel. To guarantee a
->     thread-safe execution, shared data becomes immutable.
-> *   **Simplicity**. We try to limit the number of concepts needed to understand
->     the code. Users should be able to quickly read and write code, even if they
->     are not expert. The language should avoid pitfalls as much as possible.
-> *   **Focus on tooling**. We recognize that the source code will be read,
->     analyzed, modified, by both humans and tools.
-> *   **Python-like**. Python is a widely used language. Keeping the language
->     similar to Python can reduce the learning curve and make the semantics more
->     obvious to users.
-
-In the words of the Starlark developers:
-
-> Starlark is a dialect of Python. Like Python, it is a dynamically typed language with high-level data types, first-class functions with lexical scope, and garbage collection. Independent Starlark threads execute in parallel, so Starlark workloads scale well on parallel machines. Starlark is a small and simple language with a familiar and highly readable syntax. You can use it as an expressive notation for structured data, defining functions to eliminate repetition, or you can use it to add scripting capabilities to an existing application.
-
-> A Starlark interpreter is typically embedded within a larger application, and the application may define additional domain-specific functions and data types beyond those provided by the core language.
-
-## Why would I use this instead of just Python?
-
-### Sandboxing
-
-The primary reason this was written is for the "hermetic execution" feature of Starlark. Python is notoriously difficult to sandbox and there didn't appear to be any sandboxing solutions that could run within Python to run Python or Python-like code. While Starlark isn't exactly Python it is very very close to it. You can think of this as a secure way to run very simplistic Python functions. Note that this library itself doesn't really provide any security guarantees and your program may crash while using it (PRs welcome). Starlark itself is providing the security guarantees.
-
-### Similar Work
-
-[RestrictedPython](https://github.com/zopefoundation/RestrictedPython) looks pretty good and would probably work for most use cases including the one that pystarlark was written for. However, Python is notoriously difficult to sandbox and the developers of RestrictedPython even admit [that it causes headaches](https://docs.plone.org/develop/plone/security/sandboxing.html).
-
-The [PyPy sandbox](https://doc.pypy.org/en/latest/sandbox.html) would probably work as a secure sandbox but it historically has been unmaintained and unsupported. While some significant work has recently gone into the sandbox, it primarily exists in a seperate branch in the PyPy repo. Also PyPy is a very heavy dependency to bring in if you're already running a Python interpreter.

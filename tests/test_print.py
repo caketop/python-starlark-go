@@ -2,7 +2,7 @@ from io import StringIO
 
 import pytest
 
-from pystarlark import Starlark
+from starlark_go import Starlark
 
 
 def test_print_eval(capsys: pytest.CaptureFixture[str]):

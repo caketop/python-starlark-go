@@ -1,6 +1,6 @@
 import pytest
 
-from pystarlark import ResolveError, Starlark
+from starlark_go import ResolveError, Starlark
 
 ADD_ONE = """
 def add_one(x):

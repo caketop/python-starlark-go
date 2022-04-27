@@ -1,6 +1,6 @@
 import pytest
 
-from pystarlark import Starlark
+from starlark_go import Starlark
 
 NESTED = [{"one": (1, 1, 1), "two": [2, {"two": 2222.22}]}, ("a", "b", "c")]
 

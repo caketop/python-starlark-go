@@ -1,6 +1,6 @@
 import pytest
 
-from pystarlark import EvalError, Starlark
+from starlark_go import EvalError, Starlark
 
 
 def test_raises_evalerror():
