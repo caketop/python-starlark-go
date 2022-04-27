@@ -11,8 +11,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        #os: [ubuntu-latest, windows-latest, macos-latest]
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
       - uses: actions/checkout@v3
@@ -24,10 +23,9 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade -r development.txt
-          python -m pip install cibuildwheel==2.4.0
+      - name: Set up QEMU
+        if: runner.os == 'Linux'
+        uses: docker/setup-qemu-action@v1.2.0
 
       - name: Install Visual C++ for Python 2.7
         if: runner.os == 'Windows'
@@ -36,33 +34,39 @@ jobs:
           choco install golang -f -y
           choco install mingw -f -y
 
-      - name: Build Linux wheels and sdist
+      - name: Install dependencies
+        run: python -m pip install --upgrade -r development.txt
+
+      - name: Build sdist
         if: runner.os == 'Linux'
+        run: |
+          python setup.py sdist
+
+      - name: Build Linux wheels
+        if: runner.os == 'Linux'
+        uses: pypa/cibuildwheel@v2.4.0
         env:
           CIBW_BEFORE_ALL: 'pwd && ls && chmod +x ./scripts/setup-linux.sh && ./scripts/setup-linux.sh'
           CIBW_BUILD: cp37-* cp38-* cp39-* cp310-*
-          CIBW_SKIP: "cp35-* *-win32 *-manylinux_i686 *-manylinux_aarch64 *-manylinux_ppc64le *-manylinux_s390x *-musllinux_*"
-        run: |
-          python setup.py sdist
-          python3 -m cibuildwheel --output-dir wheelhouse
 
       - name: Build macOS wheels
         if: runner.os == 'macOS'
+        uses: pypa/cibuildwheel@v2.4.0
         env:
           CIBW_BEFORE_ALL: 'pwd && ls && chmod +x ./scripts/setup-macos.sh && ./scripts/setup-macos.sh'
           CIBW_BUILD: cp37-* cp38-* cp39-* cp310-*
-          CIBW_SKIP: "cp35-* *-win32 *-manylinux_i686 *-manylinux_aarch64 *-manylinux_ppc64le *-manylinux_s390x *-musllinux_*"
-        run: |
-          python3 -m cibuildwheel --output-dir wheelhouse
 
       - name: Build Windows wheels
         if: runner.os == 'Windows'
+        uses: pypa/cibuildwheel@v2.4.0
         env:
           CIBW_BUILD: cp37-* cp38-* cp39-* cp310-*
-          CIBW_SKIP: "cp35-* *-win32 *-manylinux_i686 *-manylinux_aarch64 *-manylinux_ppc64le *-manylinux_s390x *-musllinux_*"
-        run: |
-          go version
-          python -m cibuildwheel --output-dir wheelhouse
+
+      - uses: actions/upload-artifact@v2
+        with:
+          path: |
+            ./wheelhouse/*.whl
+            ./dist/*.tar.gz
 
       # - name: Publish sdist
       #   if: runner.os == 'Linux'
@@ -73,11 +77,6 @@ jobs:
       #     twine check ./dist/*.tar.gz
       #     twine upload --skip-existing ./dist/*
 
-      # - uses: actions/upload-artifact@v2
-      #   with:
-      #     path: |
-      #      ./wheelhouse/*.whl
-      #      ./dist/*.tar.gz
 
       # - name: Publish wheels
       #   env:
