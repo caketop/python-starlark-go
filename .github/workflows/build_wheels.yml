@@ -2,10 +2,36 @@ name: Build wheels
 
 on:
   pull_request:
-  release:
-    types: [created, edited]
+  push:
+    tags:
+      - "v*"
 
 jobs:
+  # Build the source distribution for PyPI
+  build_sdist:
+    name: Build sdist
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.10"
+
+      - name: Build sdist
+        run: |
+          python3.10 -m pip install --upgrade wheel
+          python3.10 setup.py sdist
+
+      - uses: actions/upload-artifact@v2
+        with:
+          path: dist/*.tar.gz
+
+  # Build binary distributions for PyPI
   build_wheels:
     name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -28,54 +54,80 @@ jobs:
         if: runner.os == 'Linux'
         uses: docker/setup-qemu-action@v1.2.0
 
-      - name: Build sdist
-        if: runner.os == 'Linux'
-        run: |
-          python setup.py sdist
-
-      - name: Build Linux wheels
-        if: runner.os == 'Linux'
+      - name: Build wheels
         uses: pypa/cibuildwheel@v2.4.0
-        env:
-          CIBW_BEFORE_ALL: 'sh ./scripts/install-go.sh'
-          CIBW_BUILD: cp37-* cp38-* cp39-* cp310-*
-          CIBW_SKIP: "*-musllinux_*"
-          CIBW_ARCHS: x86_64 i686 aarch64
-
-      - name: Build macOS wheels
-        if: runner.os == 'macOS'
-        uses: pypa/cibuildwheel@v2.4.0
-        env:
-          CIBW_BUILD: cp37-* cp38-* cp39-* cp310-*
-          CIBW_ARCHS: x86_64 universal2
-
-      - name: Build Windows wheels
-        if: runner.os == 'Windows'
-        uses: pypa/cibuildwheel@v2.4.0
-        env:
-          CIBW_BUILD: cp38-* cp39-* cp310-*
-          CIBW_SKIP: cp37-*
 
       - uses: actions/upload-artifact@v2
         with:
-          path: |
-            ./wheelhouse/*.whl
-            ./dist/*.tar.gz
+          path: wheelhouse/starlark_go-*.whl
 
-      # - name: Publish sdist
-      #   if: runner.os == 'Linux'
-      #   env:
-      #     TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
-      #     TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-      #   run: |
-      #     twine check ./dist/*.tar.gz
-      #     twine upload --skip-existing ./dist/*
+  # Create a GitHub release
+  github_release:
+    name: Create GitHub release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [build_wheels, build_sdist]
+    runs-on: ubuntu-latest
 
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
-      # - name: Publish wheels
-      #   env:
-      #     TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
-      #     TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-      #   run: |
-      #     twine check ./wheelhouse/*.whl
-      #     twine upload --skip-existing ./wheelhouse/*
+      - uses: actions/download-artifact@v2
+        with:
+          name: artifact
+          path: dist
+
+      - name: "✏️ Generate release changelog"
+        id: changelog
+        uses: heinrichreimer/github-changelog-generator-action@v2.3
+        with:
+          filterByMilestone: false
+          onlyLastTag: true
+          pullRequests: true
+          prWoLabels: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          verbose: true
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v1
+        with:
+          body: ${{ steps.changelog.outputs.changelog }}
+          files: dist/**/*
+
+  # Test PyPI
+  test_pypi_publish:
+    name: Test publishing to PyPI
+    needs: [build_wheels, build_sdist]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: artifact
+          path: dist
+
+      - uses: pypa/gh-action-pypi-publish@v1.4.2
+        with:
+          user: __token__
+          password: ${{ secrets.TEST_PYPI_TOKEN }}
+          repository_url: https://test.pypi.org/legacy/
+          skip_existing: true
+
+  # Publish to PyPI
+  pypi_publish:
+    name: Publish to PyPI
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [build_wheels, build_sdist]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: artifact
+          path: dist
+
+      - uses: pypa/gh-action-pypi-publish@v1.4.2
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_TOKEN }}
