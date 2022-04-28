@@ -10,6 +10,7 @@ jobs:
     name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
@@ -34,6 +35,9 @@ jobs:
           choco install golang -f -y
           choco install mingw -f -y
 
+      - uses: actions/setup-go@v2
+        if: runner.os == 'macOS'
+
       - name: Install dependencies
         run: python -m pip install --upgrade -r development.txt
 
@@ -46,14 +50,13 @@ jobs:
         if: runner.os == 'Linux'
         uses: pypa/cibuildwheel@v2.4.0
         env:
-          CIBW_BEFORE_ALL: 'pwd && ls && chmod +x ./scripts/setup-linux.sh && ./scripts/setup-linux.sh'
+          CIBW_BEFORE_ALL: 'pwd && ls && chmod +x ./scripts/setup-universal.sh && ./scripts/setup-universal.sh'
           CIBW_BUILD: cp37-* cp38-* cp39-* cp310-*
 
       - name: Build macOS wheels
         if: runner.os == 'macOS'
         uses: pypa/cibuildwheel@v2.4.0
         env:
-          CIBW_BEFORE_ALL: 'pwd && ls && chmod +x ./scripts/setup-macos.sh && ./scripts/setup-macos.sh'
           CIBW_BUILD: cp37-* cp38-* cp39-* cp310-*
 
       - name: Build Windows wheels
