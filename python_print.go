@@ -11,7 +11,7 @@ import (
 )
 
 //export Starlark_get_print
-func Starlark_get_print(self *C.Starlark, closure *C.void) *C.PyObject {
+func Starlark_get_print(self *C.Starlark, closure unsafe.Pointer) *C.PyObject {
 	state := rlockSelf(self)
 	if state == nil {
 		return nil
@@ -26,7 +26,7 @@ func Starlark_get_print(self *C.Starlark, closure *C.void) *C.PyObject {
 }
 
 //export Starlark_set_print
-func Starlark_set_print(self *C.Starlark, value *C.PyObject, closure *C.void) C.int {
+func Starlark_set_print(self *C.Starlark, value *C.PyObject, closure unsafe.Pointer) C.int {
 	if value == C.Py_None {
 		value = nil
 	}
