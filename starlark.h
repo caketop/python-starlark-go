@@ -2,6 +2,7 @@
 #define PYTHON_STARLARK_GO_H
 
 #include <stdlib.h>
+#include <stdint.h>
 #define PY_SSIZE_T_CLEAN
 #undef Py_LIMITED_API
 #include <Python.h>
