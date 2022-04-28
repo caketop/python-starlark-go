@@ -15,6 +15,9 @@ if [ -e /etc/debian_version ]; then
 fi
 
 git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.10.0
+
+OLD_PATH=$PATH
+
 . ~/.asdf/asdf.sh
 
 asdf plugin add golang
@@ -22,6 +25,8 @@ asdf install golang "$GO_VERSION"
 
 ln -s ~/.asdf/installs/golang/${GO_VERSION}/go/bin/go /usr/local/bin/go
 ln -s ~/.asdf/installs/golang/${GO_VERSION}/go/bin/gofmt /usr/local/bin/gofmt
+
+PATH=$OLD_PATH
 
 go version
 
