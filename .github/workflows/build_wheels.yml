@@ -50,12 +50,14 @@ jobs:
           CIBW_BEFORE_ALL: 'pwd && ls && chmod +x ./scripts/setup-universal.sh && ./scripts/setup-universal.sh'
           CIBW_BUILD: cp37-* cp38-* cp39-* cp310-*
           CIBW_SKIP: "*-musllinux_*"
+          CIBW_ARCHS: x86_64 i686 aarch64
 
       - name: Build macOS wheels
         if: runner.os == 'macOS'
         uses: pypa/cibuildwheel@v2.4.0
         env:
           CIBW_BUILD: cp37-* cp38-* cp39-* cp310-*
+          CIBW_ARCHS: x86_64 universal2
 
       - name: Build Windows wheels
         if: runner.os == 'Windows'
