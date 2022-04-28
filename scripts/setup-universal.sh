@@ -18,6 +18,7 @@ git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.10.0
 
 OLD_PATH=$PATH
 
+# shellcheck disable=SC1090
 . ~/.asdf/asdf.sh
 
 asdf plugin add golang
