@@ -49,6 +49,7 @@ jobs:
         env:
           CIBW_BEFORE_ALL: 'pwd && ls && chmod +x ./scripts/setup-universal.sh && ./scripts/setup-universal.sh'
           CIBW_BUILD: cp37-* cp38-* cp39-* cp310-*
+          CIBW_SKIP: "*-musllinux_*"
 
       - name: Build macOS wheels
         if: runner.os == 'macOS'
