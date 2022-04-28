@@ -1,5 +1,10 @@
 # python-starlark-go
 
+[![PyPI](https://img.shields.io/pypi/v/starlark-go)](https://pypi.org/project/starlark-go/)
+![Tests](https://github.com/caketop/python-starlark-go/actions/workflows/test.yml/badge.svg)
+[![Documentation Status](https://readthedocs.org/projects/python-renameat2/badge/?version=latest)](https://python-renameat2.readthedocs.io/en/latest/?badge=latest)
+[![action-bumpr supported](https://img.shields.io/badge/bumpr-supported-ff69b4?logo=github&link=https://github.com/haya14busa/action-bumpr)](https://github.com/haya14busa/action-bumpr)
+
 ## Introduction
 
 This module provides Python bindings for the Starlark programming language.
