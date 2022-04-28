@@ -145,7 +145,11 @@ func Starlark_dealloc(self *C.Starlark) {
 	defer STATE_MUTEX.Unlock()
 
 	stateId := uint64(self.state_id)
-	state := STATE[stateId]
+	state, ok := STATE[stateId]
+
+	if !ok {
+		panic(fmt.Errorf("Unknown state: %d (%d)", stateId, self.state_id))
+	}
 
 	state.Mutex.Lock()
 	defer state.Mutex.Unlock()
