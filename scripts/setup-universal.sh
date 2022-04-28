@@ -14,6 +14,10 @@ if [ -e /etc/debian_version ]; then
   DEBIAN_FRONTEND=noninteractive apt-get install -y curl git
 fi
 
+if [ -z "$BASH_VERSION" ]; then
+  exec bash "$0"
+fi
+
 git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.10.0
 
 OLD_PATH=$PATH
