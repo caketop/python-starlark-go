@@ -5,7 +5,7 @@ set -ex
 GO_VERSION=1.18.1
 
 if [ -e /etc/alpine-release ] && [ -z "$BASH_VERSION" ]; then
-  apk add bash curl git go libc6-compat
+  apk add bash curl git go
   exit 0
 fi
 
