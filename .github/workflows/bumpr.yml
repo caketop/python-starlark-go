@@ -18,3 +18,5 @@ jobs:
       # Bump version on merging Pull Requests with specific labels.
       # (bump:major,bump:minor,bump:patch)
       - uses: haya14busa/action-bumpr@v1
+        with:
+          github_token: ${{ secrets.BUMPR_TOKEN }}

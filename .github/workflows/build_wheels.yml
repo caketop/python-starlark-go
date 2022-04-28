@@ -33,7 +33,7 @@ jobs:
 
   # Build binary distributions for PyPI
   build_wheels:
-    name: Build wheels on ${{ matrix.os }}
+    name: Build ${{ matrix.build }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -41,6 +41,7 @@ jobs:
         # Windows isn't working right now: https://github.com/caketop/python-starlark-go/issues/4
         # os: [ubuntu-latest, windows-latest, macos-latest]
         os: [ubuntu-latest, macos-latest]
+        build: [cp310, cp39, cp38, cp37]
 
     steps:
       - uses: actions/checkout@v3
@@ -56,6 +57,8 @@ jobs:
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.4.0
+        env:
+          CIBW_BUILD: ${{ matrix.build }}-*
 
       - uses: actions/upload-artifact@v2
         with:
