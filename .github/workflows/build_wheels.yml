@@ -41,7 +41,7 @@ jobs:
         # Windows isn't working right now: https://github.com/caketop/python-starlark-go/issues/4
         # os: [ubuntu-latest, windows-latest, macos-latest]
         os: [ubuntu-latest, macos-latest]
-        build: [cp310, cp39, cp38, cp37]
+        build: [cp311, cp310, cp39, cp38, cp37]
 
     steps:
       - uses: actions/checkout@v3
