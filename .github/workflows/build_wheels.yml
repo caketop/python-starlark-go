@@ -48,9 +48,15 @@ jobs:
           - os: macos-latest
             cibw_arch: aarch64
           - os: macos-latest
+            cibw_arch: x86_64
+          - os: macos-latest
             cibw_python: "cp37-*"
             cibw_arch: universal2
-
+        include:
+          - os: macos-latest
+            cibw_python: "cp37-*"
+            cibw_arch: x86_64
+        
     steps:
       - uses: actions/checkout@v3
         with:
