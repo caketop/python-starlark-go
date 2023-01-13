@@ -1,5 +1,5 @@
 Sphinx>=4.5.0,<5
-importlib-metadata==5.0.0
+importlib-metadata==6.0.0
 myst-parser>=0.17.2,<0.19
 readthedocs-sphinx-search==0.1.2
 sphinx-book-theme==0.3.3
