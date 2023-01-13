@@ -64,7 +64,7 @@ jobs:
         uses: docker/setup-qemu-action@v2.1.0
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.11.2
+        uses: pypa/cibuildwheel@v2.11.4
         env:
           CIBW_BUILD_VERBOSITY: 1
           CIBW_BUILD: ${{ matrix.cibw_python }}
@@ -122,7 +122,7 @@ jobs:
           name: artifact
           path: dist
 
-      - uses: pypa/gh-action-pypi-publish@v1.5.1
+      - uses: pypa/gh-action-pypi-publish@v1.6.4
         with:
           user: __token__
           password: ${{ secrets.TEST_PYPI_TOKEN }}
@@ -142,7 +142,7 @@ jobs:
           name: artifact
           path: dist
 
-      - uses: pypa/gh-action-pypi-publish@v1.5.1
+      - uses: pypa/gh-action-pypi-publish@v1.6.4
         with:
           user: __token__
           password: ${{ secrets.PYPI_TOKEN }}
