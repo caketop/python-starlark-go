@@ -33,7 +33,7 @@ jobs:
 
   # Build binary distributions for PyPI
   build_wheels:
-    name: Build on ${{ matrix.os }} for ${{matrix.cibw_python}} ${{matrix.cibw_arch}}
+    name: Build on ${{ matrix.os }} for ${{matrix.cibw_python}} ${{matrix.cibw_archs_linux}} ${{matrix.cibw_archs_macos}}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -55,7 +55,7 @@ jobs:
             cibw_archs_macos: universal2
           - os: macos-latest
             cibw_python: "cp37-*"
-            cibw_archs_macos: arms64
+            cibw_archs_macos: arm64
         
     steps:
       - uses: actions/checkout@v3
@@ -74,7 +74,8 @@ jobs:
         env:
           CIBW_BUILD_VERBOSITY: 1
           CIBW_BUILD: ${{ matrix.cibw_python }}
-          CIBW_ARCHS: ${{ matrix.cibw_arch }}
+          CIBW_ARCHS_LINUX: ${{ matrix.cibw_arch_linux }}
+          CIBW_ARCHS_MACOS: ${{ matrix.cibw_arch_macos }}
 
       - uses: actions/upload-artifact@v3
         with:
