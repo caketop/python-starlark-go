@@ -10,7 +10,12 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ['3.7', '3.8', '3.9', '3.10', '3.11.0-rc.1']
+        python-version: ['3.7', '3.8', '3.9', '3.10', '3.11', '3.12-dev']
+        experimental: [false]
+        include:
+          - version: '3.12-dev'
+            # sets continue-on-error automatically
+            experimental: true
 
     name: Python ${{ matrix.python-version }}
     steps:
