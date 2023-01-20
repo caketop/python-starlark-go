@@ -74,8 +74,8 @@ jobs:
         env:
           CIBW_BUILD_VERBOSITY: 1
           CIBW_BUILD: ${{ matrix.cibw_python }}
-          CIBW_ARCHS_LINUX: ${{ matrix.cibw_arch_linux }}
-          CIBW_ARCHS_MACOS: ${{ matrix.cibw_arch_macos }}
+          CIBW_ARCHS_LINUX: ${{ matrix.cibw_archs_linux }}
+          CIBW_ARCHS_MACOS: ${{ matrix.cibw_archs_macos }}
 
       - uses: actions/upload-artifact@v3
         with:
