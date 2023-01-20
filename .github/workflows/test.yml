@@ -33,7 +33,9 @@ jobs:
       # https://github.com/bloomberg/memray#building-from-source
       - name: Install memray build dependencies for Python -dev versions
         if: endsWith(matrix.python-version, '-dev') 
-        run: apt-get install libunwind-dev liblz4-dev
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: sudo apt-get install --yes --no-install-recommends libunwind-dev liblz4-dev
 
       - name: Install dependencies
         run: |
