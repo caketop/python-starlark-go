@@ -13,14 +13,8 @@ if [ "$NEW_STARLARK_VERSION" = "$OLD_STARLARK_VERSION" ]; then
   exit 0
 fi
 
-# shellcheck disable=SC2260
-if sed --version 2&>/dev/null | grep -q GNU ; then
-  sed -i "s/$OLD_STARLARK_VERSION/$NEW_STARLARK_VERSION/g" README.md
-else
-  sed -i .bak "s/$OLD_STARLARK_VERSION/$NEW_STARLARK_VERSION/g" README.md
-  rm -f README.md.bak || true
-fi
+perl -i -pe "s/\Q$OLD_STARLARK_VERSION\E/$NEW_STARLARK_VERSION/g" README.md
 
-if [ -n "$GITHUB_ENV" ]; then
+if [ -n "${GITHUB_ENV:-}" ]; then
   echo "NEW_STARLARK_VERSION=$NEW_STARLARK_VERSION" >> "$GITHUB_ENV"
 fi
