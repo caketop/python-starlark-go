@@ -121,7 +121,6 @@ jobs:
     name: Test publishing to PyPI
     needs: [build_wheels, build_sdist]
     runs-on: ubuntu-latest
-    if: secrets.TEST_PYPI_TOKEN != null && secrets.TEST_PYPI_TOKEN != ''
 
     steps:
       - uses: actions/download-artifact@v3
