@@ -1,0 +1,27 @@
+name: Update starlark-go
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  update-starlark-go:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v3
+
+      - run: ./scripts/update-starlark.sh
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v4
+        if: ${{ env.NEW_STARLARK_VERSION != null && env.NEW_STARLARK_VERSION != '' }}
+        with:
+          title: Update starlark-go to ${{ env.NEW_STARLARK_VERSION }}
+          branch: update-starlark-go
+          token: ${{ secrets.PR_TOKEN }}
