@@ -23,5 +23,6 @@ jobs:
         if: ${{ env.NEW_STARLARK_VERSION != null && env.NEW_STARLARK_VERSION != '' }}
         with:
           title: Update starlark-go to ${{ env.NEW_STARLARK_VERSION }}
+          commit-message: Update starlark-go to ${{ env.NEW_STARLARK_VERSION }}
           branch: update-starlark-go
           token: ${{ secrets.PR_TOKEN }}
