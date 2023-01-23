@@ -41,7 +41,7 @@ jobs:
         # Windows isn't working right now: https://github.com/caketop/python-starlark-go/issues/4
         os: [ubuntu-latest, macos-latest]
         cibw_python: ["cp37-*", "cp38-*", "cp39-*", "cp310-*", "cp311-*"]
-        cibw_arch: ["x86_64", "aarch64", "arm64"]
+        cibw_arch: ["i686", "x86_64", "aarch64", "arm64"]
         include:
           - cibw_arch: arm64
             goarch: arm64
@@ -52,6 +52,8 @@ jobs:
         exclude:
           - os: ubuntu-latest
             cibw_arch: arm64
+          - os: macos-latest
+            cibw_arch: i686
           - os: macos-latest
             cibw_arch: aarch64
           - os: macos-latest
