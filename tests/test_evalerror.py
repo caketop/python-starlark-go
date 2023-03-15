@@ -25,7 +25,7 @@ def test_eval_attrs():
     s.exec(STARLARK_SRC, filename="fake.star")
 
     try:
-        s.eval('1 + "2"')
+        s.eval("wrong()")
     except EvalError as e:
         assert hasattr(e, "error")
         assert isinstance(e.error, str)
