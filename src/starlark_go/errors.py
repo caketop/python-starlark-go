@@ -84,14 +84,55 @@ class EvalError(StarlarkError):
     such as adding a string to an integer.
     """
 
-    def __init__(self, error: str, error_type: str, backtrace: str):
-        super().__init__(error, error_type, backtrace)
+    def __init__(
+        self,
+        error: str,
+        error_type: str,
+        filename: str,
+        line: int,
+        column: int,
+        function_name: str,
+        backtrace: str,
+    ):
+        super().__init__(
+            error, error_type, filename, line, column, function_name, backtrace
+        )
+        self.filename = filename
+        """
+        The name of the file that the error occurred in.
+
+        :type: str
+        """
+        self.line = line
+        """
+        The line number that the error occurred on (1-based)
+
+        :type: int
+        """
+        self.column = column
+        """
+        The column that the error occurred on (1-based)
+
+        :type: int
+        """
+        self.function_name = function_name
+        """
+        The name of the function that the error occurred in
+
+        :type: str
+        """
         self.backtrace = backtrace
         """
         A backtrace through Starlark's stack leading up to the error.
 
         :type: str
         """
+
+        context = self.filename
+        if self.function_name != "<unknown>":
+            context += " in " + self.function_name
+
+        self.error = f"{context}:{self.line}:{self.column}: {self.error}"
 
 
 class ResolveErrorItem:

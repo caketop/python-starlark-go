@@ -422,12 +422,20 @@ PyObject *makeSyntaxErrorArgs(
 }
 
 PyObject *makeEvalErrorArgs(
-    const char *error_msg, const char *error_type, const char *backtrace
+    const char *error_msg,
+    const char *error_type,
+    const char *filename,
+    const unsigned int line,
+    const unsigned int column,
+    const char *function_name,
+    const char *backtrace
 )
 {
   /* Necessary because Cgo can't do varargs */
   /* Three strings */
-  return Py_BuildValue("sss", error_msg, error_type, backtrace);
+  return Py_BuildValue(
+      "sssIIss", error_msg, error_type, filename, line, column, function_name, backtrace
+  );
 }
 
 PyObject *makeResolveErrorItem(
