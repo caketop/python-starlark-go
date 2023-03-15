@@ -22,7 +22,7 @@ version = ".".join(release.split(".")[:2])
 # -- Project information -----------------------------------------------------
 
 project = "python-starlark-go"
-copyright = "2022, Jordan Webb"
+copyright = "2023, Jordan Webb"
 author = "Jordan Webb"
 
 
@@ -56,7 +56,7 @@ intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = "sphinx_book_theme"
+html_theme = "sphinx_rtd_theme"
 
 html_theme_options = {
     "home_page_in_toc": True,
