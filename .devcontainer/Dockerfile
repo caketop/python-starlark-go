@@ -1,11 +1,11 @@
 ARG BASE_IMAGE=quay.io/pypa/manylinux_2_24_x86_64
-ARG GO_URL=https://go.dev/dl/go1.18.1.linux-amd64.tar.gz
+ARG GO_URL=https://go.dev/dl/go1.20.2.linux-amd64.tar.gz
 ARG CLANG_URL=https://github.com/llvm/llvm-project/releases/download/llvmorg-14.0.0/clang+llvm-14.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz
 ARG SHELLCHECK_URL=https://github.com/koalaman/shellcheck/releases/download/v0.8.0/shellcheck-v0.8.0.linux.x86_64.tar.xz
 ARG MCFLY_URL=https://github.com/cantino/mcfly/releases/download/v0.6.0/mcfly-v0.6.0-x86_64-unknown-linux-musl.tar.gz
 
 ARG USERNAME=builder
-ARG USER_UID=1000
+ARG USER_UID=501
 ARG USER_GID=$USER_UID
 
 
