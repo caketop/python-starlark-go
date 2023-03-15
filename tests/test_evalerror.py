@@ -37,10 +37,10 @@ def test_eval_attrs():
         assert e.filename == "fake.star"
         assert hasattr(e, "line")
         assert isinstance(e.line, int)
-        assert e.line == 1
+        assert e.line == 3
         assert hasattr(e, "column")
         assert isinstance(e.column, int)
-        assert e.column == 2
+        assert e.column == 12
         assert hasattr(e, "function_name")
         assert isinstance(e.function_name, str)
         assert e.function_name == "wrong"
