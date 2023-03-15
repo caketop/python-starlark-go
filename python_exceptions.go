@@ -52,7 +52,34 @@ func raisePythonException(err error) {
 		backtrace := C.CString(evalErr.Backtrace())
 		defer C.free(unsafe.Pointer(backtrace))
 
-		exc_args = C.makeEvalErrorArgs(error_msg, error_type, backtrace)
+		var (
+			function_name *C.char
+			filename      *C.char
+			line          C.uint
+			column        C.uint
+		)
+
+		if len(evalErr.CallStack) > 0 {
+			frame := evalErr.CallStack[len(evalErr.CallStack)-1]
+
+			filename = C.CString(frame.Pos.Filename())
+			defer C.free(unsafe.Pointer((filename)))
+
+			line = C.uint(frame.Pos.Line)
+			column = C.uint(frame.Pos.Col)
+
+			function_name = C.CString(frame.Name)
+			defer C.free(unsafe.Pointer(function_name))
+		} else {
+			filename = C.CString("unknown")
+			defer C.free(unsafe.Pointer(filename))
+
+			line = 0
+			column = 0
+			function_name = filename
+		}
+
+		exc_args = C.makeEvalErrorArgs(error_msg, error_type, filename, line, column, function_name, backtrace)
 		exc_type = C.EvalError
 	case errors.As(err, &resolveErr):
 		items := C.PyTuple_New(C.Py_ssize_t(len(resolveErr)))

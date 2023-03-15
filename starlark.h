@@ -54,7 +54,13 @@ PyObject *makeSyntaxErrorArgs(
 );
 
 PyObject *makeEvalErrorArgs(
-    const char *error_msg, const char *error_type, const char *backtrace
+    const char *error_msg,
+    const char *error_type,
+    const char *filename,
+    const unsigned int line,
+    const unsigned int column,
+    const char *function_name,
+    const char *backtrace
 );
 
 PyObject *makeResolveErrorItem(
