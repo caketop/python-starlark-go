@@ -2,7 +2,7 @@
 
 set -ex
 
-GO_VERSION=1.18.1
+GO_VERSION=1.20.2
 
 if [ -e /etc/alpine-release ] && [ -z "$BASH_VERSION" ]; then
   apk add bash curl git go
