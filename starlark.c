@@ -434,7 +434,7 @@ PyObject *makeEvalErrorArgs(
   /* Necessary because Cgo can't do varargs */
   /* Three strings */
   return Py_BuildValue(
-      "ssssIIs", error_msg, error_type, backtrace, filename, line, column, function_name
+      "sssIIss", error_msg, error_type, filename, line, column, function_name, backtrace
   );
 }
 
