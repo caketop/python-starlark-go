@@ -46,6 +46,11 @@ def test_eval_attrs():
         assert e.function_name == "wrong"
         assert hasattr(e, "backtrace")
         assert isinstance(e.backtrace, str)
+
+        strerror = str(e)
+        assert strerror.startswith(
+            f"{e.filename} in {e.function_name}:{e.line}:{e.column}: "
+        )
         raised = True
 
     assert raised

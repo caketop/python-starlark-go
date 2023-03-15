@@ -128,6 +128,12 @@ class EvalError(StarlarkError):
         :type: str
         """
 
+        context = self.filename
+        if self.function_name != "<unknown>":
+            context += " in " + self.function_name
+
+        self.error = f"{context}:{self.line}:{self.column}: {self.error}"
+
 
 class ResolveErrorItem:
     """
