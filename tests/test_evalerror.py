@@ -22,7 +22,7 @@ def test_eval_attrs():
     s = Starlark()
     raised = False
 
-    s.eval(STARLARK_SRC, filename="fake.star")
+    s.exec(STARLARK_SRC, filename="fake.star")
 
     try:
         s.eval('1 + "2"')
