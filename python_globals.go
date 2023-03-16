@@ -66,7 +66,12 @@ func Starlark_get_global(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject)
 		return nil
 	}
 
-	return starlarkValueToPython(value)
+	retval, err := starlarkValueToPython(value)
+	if err != nil {
+		return nil
+	}
+
+	return retval
 }
 
 //export Starlark_set_globals
@@ -151,7 +156,12 @@ func Starlark_pop_global(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject)
 	}
 
 	delete(state.Globals, goName)
-	return starlarkValueToPython(value)
+	retval, err := starlarkValueToPython(value)
+	if err != nil {
+		return nil
+	}
+
+	return retval
 }
 
 //export Starlark_tp_iter

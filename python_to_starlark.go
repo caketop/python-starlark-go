@@ -225,18 +225,16 @@ func pythonToStarlarkValue(obj *C.PyObject) (starlark.Value, error) {
 		value, err = pythonToStarlarkList(obj)
 	}
 
+	if value == nil {
+		if err == nil {
+			err = fmt.Errorf("Can't convert Python %s to Starlark", C.GoString(obj.ob_type.tp_name))
+		}
+	}
+
 	if err != nil {
 		if C.PyErr_Occurred() == nil {
-			var errmsg *C.char
-			tp_name := C.GoString(obj.ob_type.tp_name)
-
-			if value == nil {
-				errmsg = C.CString(fmt.Sprintf("Don't know how to convert %s to Starlark value", tp_name))
-			} else {
-				errmsg = C.CString(fmt.Sprintf("While converting %s to Starlark value: %s", tp_name, err.Error()))
-			}
+			errmsg := C.CString(err.Error())
 			defer C.free(unsafe.Pointer(errmsg))
-
 			C.PyErr_SetString(C.ConversionError, errmsg)
 		}
 	}
