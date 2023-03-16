@@ -62,7 +62,12 @@ func Starlark_eval(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject) *C.Py
 		defer C.free(unsafe.Pointer(cstr))
 		return C.cgoPy_BuildString(cstr)
 	} else {
-		return starlarkValueToPython(result)
+		retval, err := starlarkValueToPython(result)
+		if err != nil {
+			return nil
+		}
+
+		return retval
 	}
 }
 

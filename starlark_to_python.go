@@ -15,165 +15,174 @@ import (
 	"go.starlark.net/starlark"
 )
 
-func starlarkIntToPython(x starlark.Int) *C.PyObject {
+func starlarkIntToPython(x starlark.Int) (*C.PyObject, error) {
 	/* Try to do it quickly */
 	xint, ok := x.Int64()
 	if ok {
-		return C.PyLong_FromLongLong(C.longlong(xint))
+		return C.PyLong_FromLongLong(C.longlong(xint)), nil
 	}
 
 	/* Fall back to converting from string */
 	cstr := C.CString(x.String())
 	defer C.free(unsafe.Pointer(cstr))
-	return C.PyLong_FromString(cstr, nil, 10)
+	return C.PyLong_FromString(cstr, nil, 10), nil
 }
 
-func starlarkStringToPython(x starlark.String) *C.PyObject {
+func starlarkStringToPython(x starlark.String) (*C.PyObject, error) {
 	cstr := C.CString(string(x))
 	defer C.free(unsafe.Pointer(cstr))
-	return C.cgoPy_BuildString(cstr)
+	return C.cgoPy_BuildString(cstr), nil
 }
 
-func starlarkDictToPython(x starlark.IterableMapping) *C.PyObject {
+func starlarkDictToPython(x starlark.IterableMapping) (*C.PyObject, error) {
 	items := x.Items()
 	dict := C.PyDict_New()
 
 	for _, item := range items {
-		key := starlarkValueToPython(item[0])
+		key, err := starlarkValueToPython(item[0])
 		defer C.Py_DecRef(key)
 
-		if key == nil {
+		if err != nil {
 			C.Py_DecRef(dict)
-			return nil
+			return nil, err
 		}
 
-		value := starlarkValueToPython((item[1]))
+		value, err := starlarkValueToPython((item[1]))
 		defer C.Py_DecRef(value)
 
-		if value == nil {
+		if err != nil {
 			C.Py_DecRef(dict)
-			return nil
+			return nil, err
 		}
 
 		// This does not steal references
 		C.PyDict_SetItem(dict, key, value)
 	}
 
-	return dict
+	return dict, nil
 }
 
-func starlarkTupleToPython(x starlark.Tuple) *C.PyObject {
+func starlarkTupleToPython(x starlark.Tuple) (*C.PyObject, error) {
 	tuple := C.PyTuple_New(C.Py_ssize_t(x.Len()))
 	iter := x.Iterate()
 	defer iter.Done()
 
 	var elem starlark.Value
 	for i := 0; iter.Next(&elem); i++ {
-		value := starlarkValueToPython(elem)
-
-		if value == nil {
+		value, err := starlarkValueToPython(elem)
+		if err != nil {
 			C.Py_DecRef(value)
 			C.Py_DecRef(tuple)
-			return nil
+			return nil, err
 		}
 
 		// This "steals" the ref to value so we don't need to DecRef after
 		if C.PyTuple_SetItem(tuple, C.Py_ssize_t(i), value) != 0 {
 			C.Py_DecRef(value)
 			C.Py_DecRef(tuple)
-			return nil
+			return nil, fmt.Errorf("Tuple: setitem failed")
 		}
 	}
 
-	return tuple
+	return tuple, nil
 }
 
-func starlarkListToPython(x starlark.Iterable) *C.PyObject {
+func starlarkListToPython(x starlark.Iterable) (*C.PyObject, error) {
 	list := C.PyList_New(0)
 	iter := x.Iterate()
 	defer iter.Done()
 
 	var elem starlark.Value
 	for i := 0; iter.Next(&elem); i++ {
-		value := starlarkValueToPython(elem)
-
-		if value == nil {
+		value, err := starlarkValueToPython(elem)
+		if err != nil {
 			C.Py_DecRef(list)
-			return nil
+			return nil, err
 		}
 
 		// This "steals" the ref to value so we don't need to DecRef after
 		if C.PyList_Append(list, value) != 0 {
 			C.Py_DecRef(value)
 			C.Py_DecRef(list)
-			return nil
+			return nil, fmt.Errorf("List: append failed")
 		}
 	}
 
-	return list
+	return list, nil
 }
 
-func starlarkSetToPython(x starlark.Set) *C.PyObject {
+func starlarkSetToPython(x starlark.Set) (*C.PyObject, error) {
 	set := C.PySet_New(nil)
 	iter := x.Iterate()
 	defer iter.Done()
 
 	var elem starlark.Value
 	for i := 0; iter.Next(&elem); i++ {
-		value := starlarkValueToPython(elem)
+		value, err := starlarkValueToPython(elem)
 		defer C.Py_DecRef(value)
 
-		if value == nil {
+		if err != nil {
 			C.Py_DecRef(set)
-			return nil
+			return nil, err
 		}
 
 		// This does not steal references
 		C.PySet_Add(set, value)
 	}
 
-	return set
+	return set, nil
 }
 
-func starlarkBytesToPython(x starlark.Bytes) *C.PyObject {
+func starlarkBytesToPython(x starlark.Bytes) (*C.PyObject, error) {
 	cstr := C.CString(string(x))
 	defer C.free(unsafe.Pointer(cstr))
-	return C.PyBytes_FromStringAndSize(cstr, C.Py_ssize_t(x.Len()))
+	return C.PyBytes_FromStringAndSize(cstr, C.Py_ssize_t(x.Len())), nil
 }
 
-func starlarkValueToPython(x starlark.Value) *C.PyObject {
+func starlarkValueToPython(x starlark.Value) (*C.PyObject, error) {
+	var value *C.PyObject = nil
+	var err error = nil
+
 	switch x := x.(type) {
 	case starlark.NoneType:
-		return C.cgoPy_NewRef(C.Py_None)
+		value = C.cgoPy_NewRef(C.Py_None)
 	case starlark.Bool:
 		if x {
-			return C.cgoPy_NewRef(C.Py_True)
+			value = C.cgoPy_NewRef(C.Py_True)
 		} else {
-			return C.cgoPy_NewRef(C.Py_False)
+			value = C.cgoPy_NewRef(C.Py_False)
 		}
 	case starlark.Int:
-		return starlarkIntToPython(x)
+		value, err = starlarkIntToPython(x)
 	case starlark.Float:
-		return C.PyFloat_FromDouble(C.double(float64(x)))
+		value = C.PyFloat_FromDouble(C.double(float64(x)))
 	case starlark.String:
-		return starlarkStringToPython(x)
+		value, err = starlarkStringToPython(x)
 	case starlark.Bytes:
-		return starlarkBytesToPython(x)
+		value, err = starlarkBytesToPython(x)
 	case *starlark.Set:
-		return starlarkSetToPython(*x)
+		value, err = starlarkSetToPython(*x)
 	case starlark.IterableMapping:
-		return starlarkDictToPython(x)
+		value, err = starlarkDictToPython(x)
 	case starlark.Tuple:
-		return starlarkTupleToPython(x)
+		value, err = starlarkTupleToPython(x)
 	case starlark.Iterable:
-		return starlarkListToPython(x)
+		value, err = starlarkListToPython(x)
 	}
 
-	if C.PyErr_Occurred() == nil {
-		errmsg := C.CString(fmt.Sprintf("Don't know how to convert %s to Python value", reflect.TypeOf(x).String()))
-		defer C.free(unsafe.Pointer(errmsg))
-		C.PyErr_SetString(C.ConversionError, errmsg)
+	if value == nil {
+		if err == nil {
+			err = fmt.Errorf("Can't to convert Starlark %s to Python", reflect.TypeOf(x).String())
+		}
 	}
 
-	return nil
+	if err != nil {
+		if C.PyErr_Occurred() == nil {
+			errmsg := C.CString(err.Error())
+			defer C.free(unsafe.Pointer(errmsg))
+			C.PyErr_SetString(C.ConversionError, errmsg)
+		}
+	}
+
+	return value, err
 }
