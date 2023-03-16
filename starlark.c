@@ -114,6 +114,8 @@ PyDoc_STRVAR(
     "unspecified, Starlark's ``print()`` function will be forwarded to Python's "
     "built-in :py:func:`python:print`.\n"
     ":type print: typing.Callable[[str], typing.Any]\n"
+    ":raises ConversionToPythonFailed: if the value is of an unsupported type for "
+    "conversion.\n"
     ":raises EvalError: if there is a Starlark evaluation error\n"
     ":raises ResolveError: if there is a Starlark resolution error\n"
     ":raises SyntaxError: if there is a Starlark syntax error\n"
@@ -139,7 +141,6 @@ PyDoc_STRVAR(
     "unspecified, Starlark's ``print()`` function will be forwarded to Python's "
     "built-in :py:func:`python:print`.\n"
     ":type print: typing.Callable[[str], typing.Any]\n"
-    ":raises ConversionError: if the value is of an unsupported type for conversion.\n"
     ":raises EvalError: if there is a Starlark evaluation error\n"
     ":raises ResolveError: if there is a Starlark resolution error\n"
     ":raises SyntaxError: if there is a Starlark syntax error\n"
@@ -178,14 +179,15 @@ PyDoc_STRVAR(
     "For the aggregate types (``dict``, ``list``, ``set``, and ``tuple``,) all keys "
     "and/or values must also be one of the supported types.\n\n"
     "Attempting to get the value of any other Starlark type will raise a "
-    ":py:class:`ConversionError`.\n\n"
+    ":py:class:`ConversionToPythonFailed`.\n\n"
     ":param name: The name of the global variable.\n"
     ":type name: str\n"
     ":param default_value: A default value to return, if no global variable named "
     "``name`` is defined.\n"
     ":type default_value: typing.Any\n"
     ":raises KeyError: if there is no global value named ``name`` defined.\n"
-    ":raises ConversionError: if the value is of an unsupported type for conversion.\n"
+    ":raises ConversionToPythonFailed: if the value is of an unsupported type for "
+    "conversion.\n"
     ":rtype: typing.Any\n"
 );
 
@@ -227,8 +229,9 @@ PyDoc_STRVAR(
     "For the aggregate types (``dict``, ``list``, ``set``, and ``tuple``,) all keys "
     "and/or values must also be one of the supported types.\n\n"
     "Attempting to set a value of any other Python type will raise a "
-    ":py:class:`ConversionError`.\n\n"
-    ":raises ConversionError: if a value is of an unsupported type for conversion.\n"
+    ":py:class:`ConversionToStarlarkFailed`.\n\n"
+    ":raises ConversionToStarlarkFailed: if a value is of an unsupported type for "
+    "conversion.\n"
 );
 
 PyDoc_STRVAR(
@@ -244,7 +247,8 @@ PyDoc_STRVAR(
     "``name`` is defined.\n"
     ":type default_value: typing.Any\n"
     ":raises KeyError: if there is no global value named ``name`` defined.\n"
-    ":raises ConversionError: if the value is of an unsupported type for conversion.\n"
+    ":raises ConversionToPythonFailed: if the value is of an unsupported type for "
+    "conversion.\n"
     ":rtype: typing.Any\n"
 );
 
