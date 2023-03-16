@@ -185,10 +185,24 @@ class ResolveError(StarlarkError):
 
 class ConversionError(StarlarkError):
     """
-    A Starlark conversion error.
+    A base class for conversion errors.
+    """
 
-    This exception is raied by :py:meth:`starlark_go.Starlark.eval`,
-    :py:meth:`starlark_go.Starlark.get`, and :py:meth:`starlark_go.Starlark.set`
-    when a Starlark value can not be converted to a Python value, or when a
-    Python value can not be converted to a Starlark value.
+
+class ConversionToPythonFailed(ConversionError):
+    """
+    An error when converting a Starlark value to a Python value.
+
+    This exception is raied by :py:meth:`starlark_go.Starlark.eval`
+    and :py:meth:`starlark_go.Starlark.get when a Starlark value can
+    not be converted to a Python value.
+    """
+
+
+class ConversionToStarlarkFailed(ConversionError):
+    """
+    An error when converting a Python value to a Starlark value.
+
+    This exception is raied by :py:meth:`starlark_go.Starlark.set`
+    when a Python value can not be converted to a Starlark value.
     """

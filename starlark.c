@@ -22,7 +22,8 @@ PyObject *SyntaxError;
 PyObject *EvalError;
 PyObject *ResolveError;
 PyObject *ResolveErrorItem;
-PyObject *ConversionError;
+PyObject *ConversionToPythonFailed;
+PyObject *ConversionToStarlarkFailed;
 
 /* Wrapper for setting Starlark configuration options */
 static char *configure_keywords[] = {
@@ -555,8 +556,12 @@ PyMODINIT_FUNC PyInit_starlark_go(void)
   ResolveErrorItem = get_exception_class(errors, "ResolveErrorItem");
   if (ResolveErrorItem == NULL) return NULL;
 
-  ConversionError = get_exception_class(errors, "ConversionError");
-  if (ConversionError == NULL) return NULL;
+  ConversionToPythonFailed = get_exception_class(errors, "ConversionToPythonFailed");
+  if (ConversionToPythonFailed == NULL) return NULL;
+
+  ConversionToStarlarkFailed =
+      get_exception_class(errors, "ConversionToStarlarkFailed");
+  if (ConversionToStarlarkFailed == NULL) return NULL;
 
   PyObject *m;
   if (PyType_Ready(&StarlarkType) < 0) return NULL;

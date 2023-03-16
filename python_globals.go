@@ -2,8 +2,6 @@ package main
 
 /*
 #include "starlark.h"
-
-extern PyObject *ConversionError;
 */
 import "C"
 

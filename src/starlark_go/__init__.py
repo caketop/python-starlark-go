@@ -1,5 +1,7 @@
 from starlark_go.errors import (
     ConversionError,
+    ConversionToPythonFailed,
+    ConversionToStarlarkFailed,
     EvalError,
     ResolveError,
     ResolveErrorItem,
@@ -16,6 +18,8 @@ __all__ = [
     "Starlark",
     "StarlarkError",
     "ConversionError",
+    "ConversionToPythonFailed",
+    "ConversionToStarlarkFailed",
     "EvalError",
     "ResolveError",
     "ResolveErrorItem",
