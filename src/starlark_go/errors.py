@@ -194,7 +194,7 @@ class ConversionToPythonFailed(ConversionError):
     An error when converting a Starlark value to a Python value.
 
     This exception is raied by :py:meth:`starlark_go.Starlark.eval`
-    and :py:meth:`starlark_go.Starlark.get when a Starlark value can
+    and :py:meth:`starlark_go.Starlark.get` when a Starlark value can
     not be converted to a Python value.
     """
 
