@@ -100,7 +100,7 @@ PyDoc_STRVAR(
     "eval(self, expr, *, filename=None, convert=True, print=None)\n--\n\n"
     "Evaluate a Starlark expression. The expression passed to ``eval`` must evaluate "
     "to a value. Function definitions, variable assignments, and control structures "
-    "are not allowed by ``eval``. To use those, please use :func:`.exec`.\n\n"
+    "are not allowed by ``eval``. To use those, please use :meth:`exec`.\n\n"
     ":param expr: A string containing a Starlark expression to evaluate\n"
     ":type expr: str\n"
     ":param filename: An optional filename to use in exceptions, if evaluting the "
