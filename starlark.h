@@ -9,7 +9,7 @@
 
 /* Starlark object */
 typedef struct Starlark {
-  PyObject_HEAD uint64_t state_id;
+  PyObject_HEAD uintptr_t handle;
 } Starlark;
 
 /* Helpers for Cgo, which can't handle varargs or macros */
