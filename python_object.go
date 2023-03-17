@@ -12,7 +12,7 @@ import "C"
 
 import (
 	"fmt"
-	"math/rand"
+	"runtime/cgo"
 	"sync"
 	"unsafe"
 
@@ -25,11 +25,6 @@ type StarlarkState struct {
 	Mutex   sync.RWMutex
 	Print   *C.PyObject
 }
-
-var (
-	STATE       = map[uint64]*StarlarkState{}
-	STATE_MUTEX = sync.Mutex{}
-)
 
 //export ConfigureStarlark
 func ConfigureStarlark(allowSet C.int, allowGlobalReassign C.int, allowRecursion C.int) {
@@ -57,27 +52,13 @@ func ConfigureStarlark(allowSet C.int, allowGlobalReassign C.int, allowRecursion
 }
 
 func rlockSelf(self *C.Starlark) *StarlarkState {
-	stateId := uint64(self.state_id)
-	state, ok := STATE[stateId]
-
-	if !ok {
-		raiseRuntimeError("Internal error: rlockSelf: unknown state_id")
-		return nil
-	}
-
+	state := cgo.Handle(self.handle).Value().(*StarlarkState)
 	state.Mutex.RLock()
 	return state
 }
 
 func lockSelf(self *C.Starlark) *StarlarkState {
-	stateId := uint64(self.state_id)
-	state, ok := STATE[stateId]
-
-	if !ok {
-		raiseRuntimeError("Internal error: lockSelf: unknown state_id")
-		return nil
-	}
-
+	state := cgo.Handle(self.handle).Value().(*StarlarkState)
 	state.Mutex.Lock()
 	return state
 }
@@ -89,21 +70,9 @@ func Starlark_new(pytype *C.PyTypeObject, args *C.PyObject, kwargs *C.PyObject) 
 		return nil
 	}
 
-	var stateId uint64
+	state := &StarlarkState{Globals: starlark.StringDict{}, Mutex: sync.RWMutex{}, Print: nil}
+	self.handle = C.uintptr_t(cgo.NewHandle(state))
 
-	STATE_MUTEX.Lock()
-	defer STATE_MUTEX.Unlock()
-
-	for {
-		stateId = rand.Uint64()
-		_, ok := STATE[stateId]
-		if !ok {
-			break
-		}
-	}
-
-	self.state_id = C.uint64_t(stateId)
-	STATE[stateId] = &StarlarkState{Globals: starlark.StringDict{}, Mutex: sync.RWMutex{}, Print: nil}
 	return self
 }
 
@@ -141,15 +110,10 @@ func Starlark_init(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject) C.int
 
 //export Starlark_dealloc
 func Starlark_dealloc(self *C.Starlark) {
-	STATE_MUTEX.Lock()
-	defer STATE_MUTEX.Unlock()
+	handle := cgo.Handle(self.handle)
+	state := handle.Value().(*StarlarkState)
 
-	stateId := uint64(self.state_id)
-	state, ok := STATE[stateId]
-
-	if !ok {
-		panic(fmt.Errorf("Unknown state: %d (%d)", stateId, self.state_id))
-	}
+	handle.Delete()
 
 	state.Mutex.Lock()
 	defer state.Mutex.Unlock()
@@ -158,7 +122,6 @@ func Starlark_dealloc(self *C.Starlark) {
 		C.Py_DecRef(state.Print)
 	}
 
-	delete(STATE, stateId)
 	C.starlarkFree(self)
 }
 
