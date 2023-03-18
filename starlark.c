@@ -22,7 +22,8 @@ PyObject *SyntaxError;
 PyObject *EvalError;
 PyObject *ResolveError;
 PyObject *ResolveErrorItem;
-PyObject *ConversionError;
+PyObject *ConversionToPythonFailed;
+PyObject *ConversionToStarlarkFailed;
 
 /* Wrapper for setting Starlark configuration options */
 static char *configure_keywords[] = {
@@ -99,7 +100,7 @@ PyDoc_STRVAR(
     "eval(self, expr, *, filename=None, convert=True, print=None)\n--\n\n"
     "Evaluate a Starlark expression. The expression passed to ``eval`` must evaluate "
     "to a value. Function definitions, variable assignments, and control structures "
-    "are not allowed by ``eval``. To use those, please use func:`exec`.\n\n"
+    "are not allowed by ``eval``. To use those, please use :meth:`exec`.\n\n"
     ":param expr: A string containing a Starlark expression to evaluate\n"
     ":type expr: str\n"
     ":param filename: An optional filename to use in exceptions, if evaluting the "
@@ -113,6 +114,8 @@ PyDoc_STRVAR(
     "unspecified, Starlark's ``print()`` function will be forwarded to Python's "
     "built-in :py:func:`python:print`.\n"
     ":type print: typing.Callable[[str], typing.Any]\n"
+    ":raises ConversionToPythonFailed: if the value is of an unsupported type for "
+    "conversion.\n"
     ":raises EvalError: if there is a Starlark evaluation error\n"
     ":raises ResolveError: if there is a Starlark resolution error\n"
     ":raises SyntaxError: if there is a Starlark syntax error\n"
@@ -138,7 +141,6 @@ PyDoc_STRVAR(
     "unspecified, Starlark's ``print()`` function will be forwarded to Python's "
     "built-in :py:func:`python:print`.\n"
     ":type print: typing.Callable[[str], typing.Any]\n"
-    ":raises ConversionError: if the value is of an unsupported type for conversion.\n"
     ":raises EvalError: if there is a Starlark evaluation error\n"
     ":raises ResolveError: if there is a Starlark resolution error\n"
     ":raises SyntaxError: if there is a Starlark syntax error\n"
@@ -177,14 +179,15 @@ PyDoc_STRVAR(
     "For the aggregate types (``dict``, ``list``, ``set``, and ``tuple``,) all keys "
     "and/or values must also be one of the supported types.\n\n"
     "Attempting to get the value of any other Starlark type will raise a "
-    ":py:class:`ConversionError`.\n\n"
+    ":py:class:`ConversionToPythonFailed`.\n\n"
     ":param name: The name of the global variable.\n"
     ":type name: str\n"
     ":param default_value: A default value to return, if no global variable named "
     "``name`` is defined.\n"
     ":type default_value: typing.Any\n"
     ":raises KeyError: if there is no global value named ``name`` defined.\n"
-    ":raises ConversionError: if the value is of an unsupported type for conversion.\n"
+    ":raises ConversionToPythonFailed: if the value is of an unsupported type for "
+    "conversion.\n"
     ":rtype: typing.Any\n"
 );
 
@@ -226,8 +229,9 @@ PyDoc_STRVAR(
     "For the aggregate types (``dict``, ``list``, ``set``, and ``tuple``,) all keys "
     "and/or values must also be one of the supported types.\n\n"
     "Attempting to set a value of any other Python type will raise a "
-    ":py:class:`ConversionError`.\n\n"
-    ":raises ConversionError: if a value is of an unsupported type for conversion.\n"
+    ":py:class:`ConversionToStarlarkFailed`.\n\n"
+    ":raises ConversionToStarlarkFailed: if a value is of an unsupported type for "
+    "conversion.\n"
 );
 
 PyDoc_STRVAR(
@@ -243,7 +247,8 @@ PyDoc_STRVAR(
     "``name`` is defined.\n"
     ":type default_value: typing.Any\n"
     ":raises KeyError: if there is no global value named ``name`` defined.\n"
-    ":raises ConversionError: if the value is of an unsupported type for conversion.\n"
+    ":raises ConversionToPythonFailed: if the value is of an unsupported type for "
+    "conversion.\n"
     ":rtype: typing.Any\n"
 );
 
@@ -555,8 +560,12 @@ PyMODINIT_FUNC PyInit_starlark_go(void)
   ResolveErrorItem = get_exception_class(errors, "ResolveErrorItem");
   if (ResolveErrorItem == NULL) return NULL;
 
-  ConversionError = get_exception_class(errors, "ConversionError");
-  if (ConversionError == NULL) return NULL;
+  ConversionToPythonFailed = get_exception_class(errors, "ConversionToPythonFailed");
+  if (ConversionToPythonFailed == NULL) return NULL;
+
+  ConversionToStarlarkFailed =
+      get_exception_class(errors, "ConversionToStarlarkFailed");
+  if (ConversionToStarlarkFailed == NULL) return NULL;
 
   PyObject *m;
   if (PyType_Ready(&StarlarkType) < 0) return NULL;

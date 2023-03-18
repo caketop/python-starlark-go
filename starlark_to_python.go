@@ -3,7 +3,7 @@ package main
 /*
 #include "starlark.h"
 
-extern PyObject *ConversionError;
+extern PyObject *ConversionToPythonFailed;
 */
 import "C"
 
@@ -39,20 +39,24 @@ func starlarkDictToPython(x starlark.IterableMapping) (*C.PyObject, error) {
 	dict := C.PyDict_New()
 
 	for _, item := range items {
-		key, err := starlarkValueToPython(item[0])
-		defer C.Py_DecRef(key)
-
-		if err != nil {
-			C.Py_DecRef(dict)
-			return nil, err
+		key, err := innerStarlarkValueToPython(item[0])
+		if key != nil {
+			defer C.Py_DecRef(key)
 		}
 
-		value, err := starlarkValueToPython((item[1]))
-		defer C.Py_DecRef(value)
+		if err != nil {
+			C.Py_DecRef(dict)
+			return nil, fmt.Errorf("While converting key %v in Starlark dict: %v", item[0], err)
+		}
+
+		value, err := innerStarlarkValueToPython((item[1]))
+		if value != nil {
+			defer C.Py_DecRef(value)
+		}
 
 		if err != nil {
 			C.Py_DecRef(dict)
-			return nil, err
+			return nil, fmt.Errorf("While converting value %v of key %v in Starlark dict: %v", item[1], item[0], err)
 		}
 
 		// This does not steal references
@@ -69,18 +73,20 @@ func starlarkTupleToPython(x starlark.Tuple) (*C.PyObject, error) {
 
 	var elem starlark.Value
 	for i := 0; iter.Next(&elem); i++ {
-		value, err := starlarkValueToPython(elem)
+		value, err := innerStarlarkValueToPython(elem)
 		if err != nil {
-			C.Py_DecRef(value)
+			if value != nil {
+				C.Py_DecRef(value)
+			}
 			C.Py_DecRef(tuple)
-			return nil, err
+			return nil, fmt.Errorf("While converting value %v at index %v in Starlark tuple: %v", elem, i, err)
 		}
 
 		// This "steals" the ref to value so we don't need to DecRef after
 		if C.PyTuple_SetItem(tuple, C.Py_ssize_t(i), value) != 0 {
 			C.Py_DecRef(value)
 			C.Py_DecRef(tuple)
-			return nil, fmt.Errorf("Tuple: setitem failed")
+			return nil, fmt.Errorf("Couldn't store converted value of %v at index %v in Python tuple: %v", elem, i, err)
 		}
 	}
 
@@ -94,17 +100,17 @@ func starlarkListToPython(x starlark.Iterable) (*C.PyObject, error) {
 
 	var elem starlark.Value
 	for i := 0; iter.Next(&elem); i++ {
-		value, err := starlarkValueToPython(elem)
+		value, err := innerStarlarkValueToPython(elem)
 		if err != nil {
 			C.Py_DecRef(list)
-			return nil, err
+			return nil, fmt.Errorf("While converting value %v at index %v in Starlark list: %v", elem, i, err)
 		}
 
 		// This "steals" the ref to value so we don't need to DecRef after
 		if C.PyList_Append(list, value) != 0 {
 			C.Py_DecRef(value)
 			C.Py_DecRef(list)
-			return nil, fmt.Errorf("List: append failed")
+			return nil, fmt.Errorf("Couldn't store converted value of %v at index %v in Python list: %v", elem, i, err)
 		}
 	}
 
@@ -118,12 +124,14 @@ func starlarkSetToPython(x starlark.Set) (*C.PyObject, error) {
 
 	var elem starlark.Value
 	for i := 0; iter.Next(&elem); i++ {
-		value, err := starlarkValueToPython(elem)
-		defer C.Py_DecRef(value)
+		value, err := innerStarlarkValueToPython(elem)
+		if value != nil {
+			defer C.Py_DecRef(value)
+		}
 
 		if err != nil {
 			C.Py_DecRef(set)
-			return nil, err
+			return nil, fmt.Errorf("While converting value %v in Starlark set: %v", elem, err)
 		}
 
 		// This does not steal references
@@ -139,7 +147,7 @@ func starlarkBytesToPython(x starlark.Bytes) (*C.PyObject, error) {
 	return C.PyBytes_FromStringAndSize(cstr, C.Py_ssize_t(x.Len())), nil
 }
 
-func starlarkValueToPython(x starlark.Value) (*C.PyObject, error) {
+func innerStarlarkValueToPython(x starlark.Value) (*C.PyObject, error) {
 	var value *C.PyObject = nil
 	var err error = nil
 
@@ -168,21 +176,25 @@ func starlarkValueToPython(x starlark.Value) (*C.PyObject, error) {
 		value, err = starlarkTupleToPython(x)
 	case starlark.Iterable:
 		value, err = starlarkListToPython(x)
+	default:
+		err = fmt.Errorf("Don't know how to convert Starlark %s to Python", reflect.TypeOf(x).String())
 	}
 
-	if value == nil {
-		if err == nil {
-			err = fmt.Errorf("Can't to convert Starlark %s to Python", reflect.TypeOf(x).String())
-		}
-	}
-
-	if err != nil {
-		if C.PyErr_Occurred() == nil {
-			errmsg := C.CString(err.Error())
-			defer C.free(unsafe.Pointer(errmsg))
-			C.PyErr_SetString(C.ConversionError, errmsg)
+	if err == nil {
+		if C.PyErr_Occurred() != nil {
+			err = fmt.Errorf("Python exception while converting from Starlark")
 		}
 	}
 
 	return value, err
+}
+
+func starlarkValueToPython(x starlark.Value) (*C.PyObject, error) {
+	value, err := innerStarlarkValueToPython(x)
+	if err != nil {
+		handleConversionError(err, C.ConversionToPythonFailed)
+		return nil, err
+	}
+
+	return value, nil
 }

@@ -20,6 +20,39 @@ import (
 	"go.starlark.net/syntax"
 )
 
+func getCurrentPythonException() (*C.PyObject, *C.PyObject, *C.PyObject) {
+	var ptype *C.PyObject = nil
+	var pvalue *C.PyObject = nil
+	var ptraceback *C.PyObject = nil
+
+	C.PyErr_Fetch(&ptype, &pvalue, &ptraceback)
+	C.PyErr_NormalizeException(&ptype, &pvalue, &ptraceback)
+	if ptraceback != nil {
+		C.PyException_SetTraceback(pvalue, ptraceback)
+		C.Py_DecRef(ptraceback)
+	}
+
+	return ptype, pvalue, ptraceback
+}
+
+func setPythonExceptionCause(cause *C.PyObject) {
+	ptype, pvalue, ptraceback := getCurrentPythonException()
+	C.PyException_SetCause(pvalue, cause)
+	C.PyErr_Restore(ptype, pvalue, ptraceback)
+}
+
+func handleConversionError(err error, pytype *C.PyObject) {
+	_, pvalue, _ := getCurrentPythonException()
+
+	if pvalue != nil {
+		pvalue = C.cgoPy_NewRef(pvalue)
+		defer setPythonExceptionCause(pvalue)
+	}
+	errmsg := C.CString(err.Error())
+	defer C.free(unsafe.Pointer(errmsg))
+	C.PyErr_SetString(pytype, errmsg)
+}
+
 func raisePythonException(err error) {
 	var (
 		exc_args   *C.PyObject
