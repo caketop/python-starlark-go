@@ -9,7 +9,7 @@
 
 This module provides Python bindings for the Starlark programming language.
 
-Starlark is a dialect of Python designed for hermetic execution and deterministic evaluation. That means you can run Starlark code you don't trust without worrying about it being able access any data you did not explicitly supply to it, and that you can count on the same code to always produce the same value when used with the same input data. Starlark was orginally created for the [Bazel build system](https://bazel.build/). There are now several implementations of Starlark; this module is built on [starlark-go](https://github.com/google/starlark-go).
+Starlark is a dialect of Python designed for hermetic execution and deterministic evaluation. That means you can run Starlark code you don't trust without worrying about it being able access any data you did not explicitly supply to it, and that you can count on the same code to always produce the same value when used with the same input data. Starlark was originally created for the [Bazel build system](https://bazel.build/). There are now several implementations of Starlark; this module is built on [starlark-go](https://github.com/google/starlark-go).
 
 This module was originally forked from Kevin Chung's [pystarlark](https://github.com/ColdHeat/pystarlark).
 
