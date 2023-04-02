@@ -83,7 +83,7 @@ ARG USERNAME
 
 RUN echo "set auto-load safe-path /" > /home/${USERNAME}/.gdbinit
 
-COPY --from=go_tools /home/${USERNAME}/go/bin/ /home/${USERNAME}/go/bin
+COPY --from=go_tools --chown=${USERNAME} /home/${USERNAME}/go/bin/ /home/${USERNAME}/go/bin
 
 RUN python3.10 -m venv /home/${USERNAME}/venv
 
@@ -91,9 +91,9 @@ ENV PATH=/home/${USERNAME}/venv/bin:/opt/python/cp310-cp310/bin:${PATH}
 
 RUN python3.10 -m pip install black ipython isort memray pytest pytest-memray pytest-valgrind tox
 
-COPY --from=misc /tmp/shellcheck/shellcheck /home/${USERNAME}/.local/bin/shellcheck
-COPY --from=misc /tmp/mcfly/mcfly /home/${USERNAME}/.local/bin/mcfly
-COPY --from=misc /tmp/clang/bin/clang-format /home/${USERNAME}/.local/bin/clang-format
+COPY --from=misc --chown=${USERNAME} /tmp/shellcheck/shellcheck /home/${USERNAME}/.local/bin/shellcheck
+COPY --from=misc --chown=${USERNAME} /tmp/mcfly/mcfly /home/${USERNAME}/.local/bin/mcfly
+COPY --from=misc --chown=${USERNAME} /tmp/clang/bin/clang-format /home/${USERNAME}/.local/bin/clang-format
 
 RUN echo 'eval "$(mcfly init bash)"' >> ~/.bashrc && touch ~/.bash_history
 RUN echo 'eval "$(starship init bash)"' >> ~/.bashrc
