@@ -13,7 +13,7 @@ Starlark is a dialect of Python designed for hermetic execution and deterministi
 
 This module was originally forked from Kevin Chung's [pystarlark](https://github.com/ColdHeat/pystarlark).
 
-The version of starlark-go that is currently embedded in this module is [v0.0.0-20230302034142-4b1e35fe2254](https://pkg.go.dev/go.starlark.net@v0.0.0-20230302034142-4b1e35fe2254).
+The version of starlark-go that is currently embedded in this module is [v0.0.0-20240311180835-efac67204ba7](https://pkg.go.dev/go.starlark.net@v0.0.0-20240311180835-efac67204ba7).
 
 ## Features
 
