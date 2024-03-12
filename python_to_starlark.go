@@ -9,10 +9,7 @@ import "C"
 
 import (
 	"fmt"
-	"log"
 	"math/big"
-	"os"
-	"sync"
 
 	"go.starlark.net/starlark"
 )
