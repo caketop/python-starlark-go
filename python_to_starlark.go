@@ -9,10 +9,67 @@ import "C"
 
 import (
 	"fmt"
+	"log"
 	"math/big"
+	"os"
+	"sync"
 
 	"go.starlark.net/starlark"
 )
+
+func pythonToStarlarkBuiltin(obj *C.PyObject) (*starlark.Builtin, error) {
+	if C.PyCallable_Check(obj) == 0 {
+		return nil, fmt.Errorf("object is not callable")
+	}
+
+	C.Py_IncRef(obj)
+
+	callback := func(thread *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+		gstate := C.PyGILState_Ensure()
+		defer C.PyGILState_Release(gstate)
+
+		pyArgs, pyKwargs, err := starlarkToPythonArgsAndKwargs(args, kwargs)
+		if err != nil {
+			return starlark.None, err
+		}
+
+		defer func() {
+			C.Py_DecRef(pyArgs)
+			C.Py_DecRef(pyKwargs)
+		}()
+
+		result := C.PyObject_Call(obj, pyArgs, pyKwargs)
+		if result == nil {
+			if C.PyErr_Occurred() != nil {
+				C.PyErr_Print()
+			}
+			return starlark.None, fmt.Errorf("error calling Python function")
+		}
+		defer C.Py_DecRef(result)
+
+		return pythonToStarlarkValue(result)
+	}
+
+	return starlark.NewBuiltin("python_function", callback), nil
+}
+
+func starlarkToPythonArgsAndKwargs(args starlark.Tuple, kwargs []starlark.Tuple) (*C.PyObject, *C.PyObject, error) {
+	pyArgs, err := starlarkTupleToPython(args)
+	if err != nil {
+		return nil, nil, fmt.Errorf("converting positional arguments: %v", err)
+	}
+
+	d := starlark.NewDict(len(kwargs))
+	for _, kv := range kwargs {
+		d.SetKey(kv.Index(0), kv.Index(1))
+	}
+	pyKwargs, err := starlarkDictToPython(d)
+	if err != nil {
+		return nil, nil, fmt.Errorf("converting keyword arguments: %v", err)
+	}
+
+	return pyArgs, pyKwargs, nil
+}
 
 func pythonToStarlarkTuple(obj *C.PyObject) (starlark.Tuple, error) {
 	var elems []starlark.Value
@@ -241,6 +298,8 @@ func innerPythonToStarlarkValue(obj *C.PyObject) (starlark.Value, error) {
 		value, err = pythonToStarlarkList(obj)
 	case C.PyMapping_Check(obj) == 1:
 		value, err = pythonToStarlarkDict(obj)
+	case C.PyCallable_Check(obj) == 1:
+		value, err = pythonToStarlarkBuiltin(obj)
 	default:
 		err = fmt.Errorf("Don't know how to convert Python %s to Starlark", C.GoString(obj.ob_type.tp_name))
 	}
