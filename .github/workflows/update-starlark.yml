@@ -14,7 +14,7 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v5
 
       - run: ./scripts/update-starlark.sh
 
