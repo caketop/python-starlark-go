@@ -528,6 +528,12 @@ int cgoPyList_Check(PyObject *obj)
   return PyList_Check(obj);
 }
 
+int cgoPyFunc_Check(PyObject *obj)
+{
+  /* Necessary because Cgo can't do macros */
+  return PyFunction_Check(obj);
+}
+
 /* Helper to fetch exception classes */
 static PyObject *get_exception_class(PyObject *errors, const char *name)
 {

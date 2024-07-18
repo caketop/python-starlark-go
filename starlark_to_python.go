@@ -36,6 +36,10 @@ func starlarkStringToPython(x starlark.String) (*C.PyObject, error) {
 
 func starlarkDictToPython(x starlark.IterableMapping) (*C.PyObject, error) {
 	items := x.Items()
+	return starlarkDictItemsToPython(items)
+}
+
+func starlarkDictItemsToPython(items []starlark.Tuple) (*C.PyObject, error) {
 	dict := C.PyDict_New()
 
 	for _, item := range items {
