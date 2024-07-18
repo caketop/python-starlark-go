@@ -1,6 +1,6 @@
 import pytest
 
-from starlark_go import Starlark
+from starlark_go import EvalError, Starlark, StarlarkError
 
 NESTED = [{"one": (1, 1, 1), "two": [2, {"two": 2222.22}]}, ("a", "b", "c")]
 
@@ -163,3 +163,51 @@ def test_nested():
     assert s.globals() == ["x"]
     assert len(s.globals()) == 1
     assert s.get("x") == NESTED
+
+
+def test_func():
+    s = Starlark()
+
+    def func_impl(x):
+        if x == 0:
+            raise ValueError("got zero")
+        return x * 2
+
+    s.set(func=func_impl)
+    assert s.globals() == ["func"]
+
+    with pytest.raises(
+        StarlarkError,
+        match=r"Don't know how to convert Starlark \*starlark.Builtin to Python",
+    ):
+        s.get("func")
+
+    assert s.eval("func(10)") == 20
+    assert s.eval("func(x = 10)") == 20
+
+    with pytest.raises(EvalError, match=r"<builtin> in func_impl:0:0: got zero"):
+        s.eval("func(0)")
+
+    with pytest.raises(EvalError, match=r"<builtin> in func_impl:0:0: test_func.<locals>.func_impl\(\) missing 1 required positional argument: 'x'"):
+        s.eval("func()")
+
+    with pytest.raises(EvalError, match=r"<builtin> in func_impl:0:0: test_func.<locals>.func_impl\(\) got an unexpected keyword argument 'unknown'"):
+        s.eval("func(unknown=0)")
+
+
+def test_func_references():
+    s = Starlark()
+
+    def func_new_ref():
+        return {"a": 1}
+
+    def func_arg_ref(x):
+        return {"a": 1, "b": x}
+
+    s.set(
+        func_new_ref=func_new_ref,
+        func_arg_ref=func_arg_ref,
+    )
+
+    assert s.eval("func_new_ref()") == {"a": 1}
+    assert s.eval("func_arg_ref([1, 2, 3])") == {"a": 1, "b": [1, 2, 3]}
