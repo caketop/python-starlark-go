@@ -71,7 +71,26 @@ func starlarkDictItemsToPython(items []starlark.Tuple) (*C.PyObject, error) {
 }
 
 func starlarkTupleToPython(x starlark.Tuple) (*C.PyObject, error) {
-	tuple := C.PyTuple_New(C.Py_ssize_t(x.Len()))
+	objs, err := starlarkTupleToPythonList(x)
+	if err != nil {
+		return nil, err
+	}
+
+	tuple := C.PyTuple_New(C.Py_ssize_t(len(objs)))
+	for i, value := range objs {
+		// This "steals" the ref to value so we don't need to DecRef after
+		if C.PyTuple_SetItem(tuple, C.Py_ssize_t(i), value) != 0 {
+			C.Py_DecRef(value)
+			C.Py_DecRef(tuple)
+			return nil, fmt.Errorf("Couldn't store converted value of %v at index %v in Python tuple: %v", x[i], i, err)
+		}
+	}
+
+	return tuple, nil
+}
+
+func starlarkTupleToPythonList(x starlark.Tuple) ([]*C.PyObject, error) {
+	result := make([]*C.PyObject, x.Len())
 	iter := x.Iterate()
 	defer iter.Done()
 
@@ -82,19 +101,13 @@ func starlarkTupleToPython(x starlark.Tuple) (*C.PyObject, error) {
 			if value != nil {
 				C.Py_DecRef(value)
 			}
-			C.Py_DecRef(tuple)
 			return nil, fmt.Errorf("While converting value %v at index %v in Starlark tuple: %v", elem, i, err)
 		}
 
-		// This "steals" the ref to value so we don't need to DecRef after
-		if C.PyTuple_SetItem(tuple, C.Py_ssize_t(i), value) != 0 {
-			C.Py_DecRef(value)
-			C.Py_DecRef(tuple)
-			return nil, fmt.Errorf("Couldn't store converted value of %v at index %v in Python tuple: %v", elem, i, err)
-		}
+		result[i] = value
 	}
 
-	return tuple, nil
+	return result, nil
 }
 
 func starlarkListToPython(x starlark.Iterable) (*C.PyObject, error) {

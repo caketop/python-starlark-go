@@ -95,4 +95,6 @@ int cgoPyList_Check(PyObject *obj);
 
 int cgoPyFunc_Check(PyObject *obj);
 
+int cgoPyMethod_Check(PyObject *obj);
+
 #endif /* PYTHON_STARLARK_GO_H */

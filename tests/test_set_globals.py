@@ -211,3 +211,62 @@ def test_func_references():
 
     assert s.eval("func_new_ref()") == {"a": 1}
     assert s.eval("func_arg_ref([1, 2, 3])") == {"a": 1, "b": [1, 2, 3]}
+
+def test_method():
+    s = Starlark()
+
+    class Test:
+        def __init__(self):
+            self.result = None
+
+        def func_impl(self, x):
+            if x == 0:
+                raise ValueError("got zero")
+            self.result = x * 2
+
+    test = Test()
+    s.set(func=test.func_impl)
+    assert s.globals() == ["func"]
+
+    with pytest.raises(
+        StarlarkError,
+        match=r"Don't know how to convert Starlark \*starlark.Builtin to Python",
+    ):
+        s.get("func")
+
+    s.exec("func(10)")
+    assert test.result == 20
+
+    with pytest.raises(EvalError, match=r"<builtin> in func_impl:0:0: got zero"):
+        s.exec("func(0)")
+
+    with pytest.raises(EvalError, match=r"<builtin> in func_impl:0:0: test_method.<locals>.Test.func_impl\(\) missing 1 required positional argument: 'x'"):
+        s.eval("func()")
+
+    with pytest.raises(EvalError, match=r"<builtin> in func_impl:0:0: test_method.<locals>.Test.func_impl\(\) got an unexpected keyword argument 'unknown'"):
+        s.eval("func(unknown=0)")
+
+
+def test_method_references():
+    s = Starlark()
+
+    class Test:
+        def __init__(self):
+            self.result = None
+
+        def func_new_ref(self):
+            self.result = {"a": 1}
+
+        def func_arg_ref(self, x):
+            self.result = {"a": 1, "b": x}
+
+    test = Test()
+    s.set(
+        func_new_ref=test.func_new_ref,
+        func_arg_ref=test.func_arg_ref,
+    )
+
+    s.exec("func_new_ref()")
+    assert test.result == {"a": 1}
+    s.exec("func_arg_ref([1, 2, 3])")
+    assert test.result == {"a": 1, "b": [1, 2, 3]}

@@ -211,15 +211,43 @@ func pythonToStarlarkFloat(obj *C.PyObject) (starlark.Float, error) {
 	return starlark.Float(cvalue), nil
 }
 
-func pythonToStarlarkFunc(obj *C.PyObject, env PythonEnv) (starlark.Value, error) {
+func getFuncName(obj *C.PyObject) (string, error) {
 	nameAttr := C.CString("__name__")
 	defer C.free(unsafe.Pointer(nameAttr))
 	funcName, err := pythonToStarlarkString(C.PyObject_GetAttrString(obj, nameAttr))
 	if err != nil {
+		return "", err
+	}
+	return funcName.GoString(), nil
+}
+
+func getPyError() error {
+	// TODO: replace with PyErr_GetRaisedException when requiring Python >= 3.12
+	var (
+		errType      *C.PyObject
+		errValue     *C.PyObject
+		errTraceback *C.PyObject
+	)
+	C.PyErr_Fetch(&errType, &errValue, &errTraceback)
+	defer C.Py_DecRef(errType)
+	defer C.Py_DecRef(errValue)
+	defer C.Py_DecRef(errTraceback)
+
+	errStr, err := pythonToStarlarkString(C.PyObject_Str(errValue))
+	if err != nil {
+		return err
+	}
+
+	return fmt.Errorf(errStr.GoString())
+}
+
+func pythonToStarlarkFunc(obj *C.PyObject, env PythonEnv) (starlark.Value, error) {
+	funcName, err := getFuncName(obj)
+	if err != nil {
 		return starlark.None, err
 	}
 
-	return starlark.NewBuiltin(funcName.GoString(), func(
+	return starlark.NewBuiltin(funcName, func(
 		_ *starlark.Thread,
 		_ *starlark.Builtin,
 		args starlark.Tuple,
@@ -241,27 +269,58 @@ func pythonToStarlarkFunc(obj *C.PyObject, env PythonEnv) (starlark.Value, error
 		defer C.Py_DecRef(ckwargs)
 
 		res := C.PyObject_Call(obj, cargs, ckwargs)
-
 		if C.PyErr_Occurred() != nil {
-			// TODO: replace with PyErr_GetRaisedException when requiring Python >= 3.12
-			var (
-				errType      *C.PyObject
-				errValue     *C.PyObject
-				errTraceback *C.PyObject
-			)
-			C.PyErr_Fetch(&errType, &errValue, &errTraceback)
-			if errValue != nil {
-				defer C.Py_DecRef(errType)
-				defer C.Py_DecRef(errValue)
-				defer C.Py_DecRef(errTraceback)
-			}
+			return starlark.None, getPyError()
+		}
 
-			errStr, err := pythonToStarlarkString(C.PyObject_Str(errValue))
-			if err != nil {
-				return starlark.None, err
-			}
+		defer C.Py_DecRef(res)
+		return innerPythonToStarlarkValue(res, env)
+	}), nil
+}
 
-			return starlark.None, fmt.Errorf(errStr.GoString())
+func pythonToStarlarkMethod(obj *C.PyObject, env PythonEnv) (starlark.Value, error) {
+	self := C.PyMethod_Self(obj)
+	f := C.PyMethod_Function(obj)
+
+	funcName, err := getFuncName(f)
+	if err != nil {
+		return starlark.None, err
+	}
+
+	return starlark.NewBuiltin(funcName, func(
+		_ *starlark.Thread,
+		_ *starlark.Builtin,
+		args starlark.Tuple,
+		kwargs []starlark.Tuple,
+	) (starlark.Value, error) {
+		env.ReattachGIL()
+		defer env.DetachGIL()
+
+		// create args list with self at the front
+		cargsList, err := starlarkTupleToPythonList(args)
+		if err != nil {
+			return starlark.None, err
+		}
+		cargs := C.PyTuple_New(C.Py_ssize_t(len(cargsList) + 1))
+		if cargs == nil {
+			return starlark.None, fmt.Errorf("Could not initialize argument list")
+		}
+		C.Py_IncRef(self)
+		C.PyTuple_SetItem(cargs, 0, self)
+		for i, arg := range cargsList {
+			C.PyTuple_SetItem(cargs, C.Py_ssize_t(i + 1), arg)
+		}
+		defer C.Py_DecRef(cargs)
+
+		ckwargs, err := starlarkDictItemsToPython(kwargs)
+		if err != nil {
+			return starlark.None, err
+		}
+		defer C.Py_DecRef(ckwargs)
+
+		res := C.PyObject_Call(f, cargs, ckwargs)
+		if C.PyErr_Occurred() != nil {
+			return starlark.None, getPyError()
 		}
 
 		defer C.Py_DecRef(res)
@@ -302,6 +361,8 @@ func innerPythonToStarlarkValue(obj *C.PyObject, env PythonEnv) (starlark.Value,
 		value, err = pythonToStarlarkDict(obj, env)
 	case C.cgoPyFunc_Check(obj) == 1:
 		value, err = pythonToStarlarkFunc(obj, env)
+	case C.cgoPyMethod_Check(obj) == 1:
+		value, err = pythonToStarlarkMethod(obj, env)
 	default:
 		err = fmt.Errorf("Don't know how to convert Python %s to Starlark", C.GoString(obj.ob_type.tp_name))
 	}
