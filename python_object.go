@@ -21,9 +21,10 @@ import (
 )
 
 type StarlarkState struct {
-	Globals starlark.StringDict
-	Mutex   sync.RWMutex
-	Print   *C.PyObject
+	Globals     starlark.StringDict
+	Mutex       sync.RWMutex
+	Print       *C.PyObject
+	threadState *C.PyThreadState
 }
 
 //export ConfigureStarlark
@@ -63,6 +64,19 @@ func lockSelf(self *C.Starlark) *StarlarkState {
 	return state
 }
 
+func (state *StarlarkState) DetachGIL() {
+	state.threadState = C.PyEval_SaveThread()
+}
+
+func (state *StarlarkState) ReattachGIL() {
+	if state.threadState == nil {
+		return
+	}
+
+	C.PyEval_RestoreThread(state.threadState)
+	state.threadState = nil
+}
+
 //export Starlark_new
 func Starlark_new(pytype *C.PyTypeObject, args *C.PyObject, kwargs *C.PyObject) *C.Starlark {
 	self := C.starlarkAlloc(pytype)
@@ -70,7 +84,12 @@ func Starlark_new(pytype *C.PyTypeObject, args *C.PyObject, kwargs *C.PyObject) 
 		return nil
 	}
 
-	state := &StarlarkState{Globals: starlark.StringDict{}, Mutex: sync.RWMutex{}, Print: nil}
+	state := &StarlarkState{
+		Globals: starlark.StringDict{},
+		Mutex: sync.RWMutex{},
+		Print: nil,
+		threadState: nil,
+	}
 	self.handle = C.uintptr_t(cgo.NewHandle(state))
 
 	return self
