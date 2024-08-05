@@ -2,7 +2,7 @@
 
 set -ex
 
-GO_VERSION=1.20.2
+GO_VERSION=1.22.5
 
 if [ -e /etc/alpine-release ] && [ -z "$BASH_VERSION" ]; then
   apk add bash curl git go
@@ -21,7 +21,7 @@ if [ -e /etc/debian_version ]; then
 fi
 
 install_go() {
-  git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.10.0
+  git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.14.0
 
   # shellcheck disable=SC1090
   . ~/.asdf/asdf.sh
