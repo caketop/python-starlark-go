@@ -1,3 +1,5 @@
+import sys
+
 import pytest
 
 from starlark_go import EvalError, Starlark, StarlarkError
@@ -188,10 +190,12 @@ def test_func():
     with pytest.raises(EvalError, match=r"<builtin> in func_impl:0:0: got zero"):
         s.eval("func(0)")
 
-    with pytest.raises(EvalError, match=r"<builtin> in func_impl:0:0: test_func.<locals>.func_impl\(\) missing 1 required positional argument: 'x'"):
+    name = "func_impl" if sys.version_info < (3, 10) else "test_func.<locals>.func_impl"
+
+    with pytest.raises(EvalError, match=r"<builtin> in func_impl:0:0: " + name + r"\(\) missing 1 required positional argument: 'x'"):
         s.eval("func()")
 
-    with pytest.raises(EvalError, match=r"<builtin> in func_impl:0:0: test_func.<locals>.func_impl\(\) got an unexpected keyword argument 'unknown'"):
+    with pytest.raises(EvalError, match=r"<builtin> in func_impl:0:0: " + name + r"\(\) got an unexpected keyword argument 'unknown'"):
         s.eval("func(unknown=0)")
 
 
@@ -240,10 +244,12 @@ def test_method():
     with pytest.raises(EvalError, match=r"<builtin> in func_impl:0:0: got zero"):
         s.exec("func(0)")
 
-    with pytest.raises(EvalError, match=r"<builtin> in func_impl:0:0: test_method.<locals>.Test.func_impl\(\) missing 1 required positional argument: 'x'"):
+    name = "func_impl" if sys.version_info < (3, 10) else "test_method.<locals>.Test.func_impl"
+
+    with pytest.raises(EvalError, match=r"<builtin> in func_impl:0:0: " + name + r"\(\) missing 1 required positional argument: 'x'"):
         s.eval("func()")
 
-    with pytest.raises(EvalError, match=r"<builtin> in func_impl:0:0: test_method.<locals>.Test.func_impl\(\) got an unexpected keyword argument 'unknown'"):
+    with pytest.raises(EvalError, match=r"<builtin> in func_impl:0:0: " + name + r"\(\) got an unexpected keyword argument 'unknown'"):
         s.eval("func(unknown=0)")
 
 
