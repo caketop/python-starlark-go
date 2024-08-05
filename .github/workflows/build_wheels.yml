@@ -20,12 +20,12 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: "3.12"
 
       - name: Build sdist
         run: |
-          python3.10 -m pip install --upgrade wheel
-          python3.10 setup.py sdist
+          python3.12 -m pip install --upgrade setuptools wheel
+          python3.12 setup.py sdist
 
       - uses: actions/upload-artifact@v3
         with:
@@ -40,7 +40,7 @@ jobs:
       matrix:
         # Windows isn't working right now: https://github.com/caketop/python-starlark-go/issues/4
         os: [ubuntu-latest, macos-latest]
-        cibw_python: ["cp37-*", "cp38-*", "cp39-*", "cp310-*", "cp311-*"]
+        cibw_python: ["cp38-*", "cp39-*", "cp310-*", "cp311-*", "cp312-*", "cp313-*"]
         cibw_arch: ["i686", "x86_64", "aarch64", "arm64"]
         include:
           - cibw_arch: arm64
@@ -66,6 +66,8 @@ jobs:
           fetch-depth: 0
 
       - uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
         if: runner.os != 'Linux'
 
       - name: Set up QEMU
@@ -73,7 +75,7 @@ jobs:
         uses: docker/setup-qemu-action@v3.0.0
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.13.1
+        uses: pypa/cibuildwheel@v2.20.0
         env:
           CIBW_BUILD_VERBOSITY: 1
           CIBW_BUILD: ${{ matrix.cibw_python }}
