@@ -225,7 +225,10 @@ PyDoc_STRVAR(
     "* Python :py:obj:`python:set` to Starlark `set "
     "<https://pkg.go.dev/go.starlark.net/starlark#Set>`_\n"
     "* Python :py:obj:`python:tuple` to Starlark `tuple "
-    "<https://pkg.go.dev/go.starlark.net/starlark#Tuple>`_\n\n"
+    "<https://pkg.go.dev/go.starlark.net/starlark#Tuple>`_\n"
+    "* Python functions can be registered as a Starlark function directly. "
+    "Any exceptions raised will be rethrown as :py:class:`EvalError`.\n"
+    "\n"
     "For the aggregate types (``dict``, ``list``, ``set``, and ``tuple``,) all keys "
     "and/or values must also be one of the supported types.\n\n"
     "Attempting to set a value of any other Python type will raise a "
@@ -526,6 +529,18 @@ int cgoPyList_Check(PyObject *obj)
 {
   /* Necessary because Cgo can't do macros */
   return PyList_Check(obj);
+}
+
+int cgoPyFunc_Check(PyObject *obj)
+{
+  /* Necessary because Cgo can't do macros */
+  return PyFunction_Check(obj);
+}
+
+int cgoPyMethod_Check(PyObject *obj)
+{
+  /* Necessary because Cgo can't do macros */
+  return PyMethod_Check(obj);
 }
 
 /* Helper to fetch exception classes */

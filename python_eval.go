@@ -11,6 +11,15 @@ import (
 	"go.starlark.net/starlark"
 )
 
+// Manage the Python global interpreter lock (GIL)
+type PythonEnv interface {
+	// Detach the GIL and save the thread state
+	DetachGIL()
+
+	// Re-attach the GIL with the saved thread state
+	ReattachGIL()
+}
+
 //export Starlark_eval
 func Starlark_eval(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject) *C.PyObject {
 	var (
@@ -41,16 +50,17 @@ func Starlark_eval(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject) *C.Py
 	}
 	defer state.Mutex.RUnlock()
 
-	pyThread := C.PyEval_SaveThread()
+	state.DetachGIL()
 	starlarkPrint := func(_ *starlark.Thread, msg string) {
-		C.PyEval_RestoreThread(pyThread)
+		state.ReattachGIL()
+		defer state.DetachGIL()
+
 		callPythonPrint(print, msg)
-		pyThread = C.PyEval_SaveThread()
 	}
 
 	thread := &starlark.Thread{Print: starlarkPrint}
 	result, err := starlark.Eval(thread, goFilename, goExpr, state.Globals)
-	C.PyEval_RestoreThread(pyThread)
+	state.ReattachGIL()
 
 	if err != nil {
 		raisePythonException(err)
@@ -101,23 +111,24 @@ func Starlark_exec(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject) *C.Py
 	}
 	defer state.Mutex.Unlock()
 
-	pyThread := C.PyEval_SaveThread()
+	state.DetachGIL()
 	starlarkPrint := func(_ *starlark.Thread, msg string) {
-		C.PyEval_RestoreThread(pyThread)
+		state.ReattachGIL()
+		defer state.DetachGIL()
+
 		callPythonPrint(print, msg)
-		pyThread = C.PyEval_SaveThread()
 	}
 
 	_, program, err := starlark.SourceProgram(goFilename, goDefs, state.Globals.Has)
 	if err != nil {
-		C.PyEval_RestoreThread(pyThread)
+		state.ReattachGIL()
 		raisePythonException(err)
 		return nil
 	}
 
 	thread := &starlark.Thread{Print: starlarkPrint}
 	newGlobals, err := program.Init(thread, state.Globals)
-	C.PyEval_RestoreThread(pyThread)
+	state.ReattachGIL()
 
 	if err != nil {
 		raisePythonException(err)
