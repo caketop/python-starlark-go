@@ -29,14 +29,6 @@ jobs:
           python-version: ${{ matrix.python-version }}
           architecture: x64
 
-      # memray doesn't ship 3.12-dev binaries yet
-      # https://github.com/bloomberg/memray#building-from-source
-      - name: Install memray build dependencies for Python -dev versions
-        if: endsWith(matrix.python-version, '-dev')
-        env:
-          DEBIAN_FRONTEND: noninteractive
-        run: sudo apt-get install --yes --no-install-recommends libunwind-dev liblz4-dev
-
       - name: Install dependencies
         run: |
             python -m pip install --upgrade pip wheel
