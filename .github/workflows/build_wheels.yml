@@ -33,7 +33,7 @@ jobs:
 
   # Build binary distributions for PyPI
   build_wheels:
-    name: Build on ${{ matrix.os }} for ${{matrix.}} ${{matrix.cibw_arch}}
+    name: Build on ${{ matrix.os }} for ${{matrix.cibw_python}} ${{matrix.cibw_arch}}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
