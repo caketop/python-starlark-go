@@ -19,7 +19,7 @@
         "C_Cpp.clang_format_fallbackStyle": "LLVM",
         "C_Cpp.clang_format_path": "/home/builder/.local/bin/clang-format",
         "[c]": {
-          "editor.defaultFormatter": "vscode.github"
+          "editor.defaultFormatter": "ms-vscode.cpptools"
         },
         "editor.formatOnSave": true,
         "go.lintTool": "golangci-lint",
