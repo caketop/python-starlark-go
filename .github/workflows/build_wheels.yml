@@ -85,6 +85,7 @@ jobs:
 
       - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
+          name: wheel-${{matrix.cibw_python}}-${{ matrix.os }}--${{matrix.cibw_arch}}
           path: wheelhouse/starlark_go-*.whl
 
   # Create a GitHub release
