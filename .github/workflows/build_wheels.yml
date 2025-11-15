@@ -108,7 +108,7 @@ jobs:
 
       - name: "✏️ Generate release changelog"
         id: changelog
-        uses: janheinrichmerker/github-changelog-generator-action@e60b5a2bd9fcd88dadf6345ff8327863fb8b490f # v2.4
+        uses: janheinrichmerker/action-github-changelog-generator@e60b5a2bd9fcd88dadf6345ff8327863fb8b490f # v2.4
         with:
           filterByMilestone: false
           onlyLastTag: true
