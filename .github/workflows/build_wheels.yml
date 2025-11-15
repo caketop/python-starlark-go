@@ -33,14 +33,14 @@ jobs:
 
   # Build binary distributions for PyPI
   build_wheels:
-    name: Build on ${{ matrix.os }} for ${{matrix.cibw_python}} ${{matrix.cibw_arch}}
+    name: Build on ${{ matrix.os }} for ${{matrix.}} ${{matrix.cibw_arch}}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         # Windows isn't working right now: https://github.com/caketop/python-starlark-go/issues/4
         os: [ubuntu-latest, macos-latest]
-        cibw_python: ["cp38-*", "cp39-*", "cp310-*", "cp311-*", "cp312-*", "cp313-*"]
+        cibw_python: ["cp38", "cp39", "cp310", "cp311", "cp312", "cp313"]
         cibw_arch: ["i686", "x86_64", "aarch64", "arm64"]
         include:
           - cibw_arch: arm64
@@ -57,7 +57,7 @@ jobs:
           - os: macos-latest
             cibw_arch: aarch64
           - os: macos-latest
-            cibw_python: "cp37-*"
+            cibw_python: "cp37"
             cibw_arch: arm64
 
     steps:
@@ -78,14 +78,14 @@ jobs:
         uses: pypa/cibuildwheel@faf86a6ed7efa889faf6996aa23820831055001a # v2.23.3
         env:
           CIBW_BUILD_VERBOSITY: 1
-          CIBW_BUILD: ${{ matrix.cibw_python }}
+          CIBW_BUILD: ${{ matrix.cibw_python }}-*
           CIBW_ARCHS: ${{ matrix.cibw_arch }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: 1
 
       - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: wheel-${{matrix.cibw_python}}-${{ matrix.os }}--${{matrix.cibw_arch}}
+          name: wheel-${{matrix.}}-${{ matrix.os }}--${{matrix.cibw_arch}}
           path: wheelhouse/starlark_go-*.whl
 
   # Create a GitHub release
