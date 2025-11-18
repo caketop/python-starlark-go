@@ -1,41 +1,45 @@
 {
   "name": "manylinux + go",
   "build": {
-    "dockerfile": "Dockerfile",
+    "dockerfile": "Dockerfile"
   },
-  "settings": {
-    "python.defaultInterpreterPath": "/home/builder/venv/bin/python3",
-    "go.toolsEnvVars": {
-      "CGO_CFLAGS": "-I/opt/python/cp310-cp310/include/python3.10",
-      "CGO_LDFLAGS": "-Wl,--unresolved-symbols=ignore-all"
-    },
-    "C_Cpp.default.includePath": [
-      "/opt/python/cp310-cp310/include/python3.10"
-    ],
-    "C_Cpp.formatting": "clangFormat",
-    "C_Cpp.clang_format_style": "file",
-    "C_Cpp.clang_format_fallbackStyle": "LLVM",
-    "C_Cpp.clang_format_path": "/home/builder/.local/bin/clang-format",
-    "[c]": {
-      "editor.defaultFormatter": "ms-vscode.cpptools"
-    },
-    "editor.formatOnSave": true,
-    "go.lintTool": "golangci-lint",
-    "gopls": {
-      "formatting.gofumpt": true
-    },
-  },
-  "extensions": [
-    "bierner.github-markdown-preview",
-    "eamodio.gitlens",
-    "foxundermoon.shell-format",
-    "golang.go",
-    "ms-azuretools.vscode-docker",
-    "ms-python.python",
-    "ms-python.vscode-pylance",
-    "ms-vscode.cpptools",
-    "oderwat.indent-rainbow",
-    "tamasfe.even-better-toml",
-    "timonwong.shellcheck"
-  ],
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "python.defaultInterpreterPath": "/home/builder/venv/bin/python3",
+        "go.toolsEnvVars": {
+          "CGO_CFLAGS": "-I/opt/python/cp310-cp310/include/python3.10",
+          "CGO_LDFLAGS": "-Wl,--unresolved-symbols=ignore-all"
+        },
+        "C_Cpp.default.includePath": [
+          "/opt/python/cp310-cp310/include/python3.10"
+        ],
+        "C_Cpp.formatting": "clangFormat",
+        "C_Cpp.clang_format_style": "file",
+        "C_Cpp.clang_format_fallbackStyle": "LLVM",
+        "C_Cpp.clang_format_path": "/home/builder/.local/bin/clang-format",
+        "[c]": {
+          "editor.defaultFormatter": "ms-vscode.cpptools"
+        },
+        "editor.formatOnSave": true,
+        "go.lintTool": "golangci-lint",
+        "gopls": {
+          "formatting.gofumpt": true
+        }
+      },
+      "extensions": [
+        "bierner.github-markdown-preview",
+        "eamodio.gitlens",
+        "foxundermoon.shell-format",
+        "golang.go",
+        "ms-azuretools.vscode-docker",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-vscode.cpptools",
+        "oderwat.indent-rainbow",
+        "tamasfe.even-better-toml",
+        "timonwong.shellcheck"
+      ]
+    }
+  }
 }
