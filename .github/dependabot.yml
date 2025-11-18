@@ -9,13 +9,19 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: "gomod" # See documentation for possible values
     directory: "/" # Location of package manifests
     schedule:
       interval: "daily"
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: "pip" # See documentation for possible values
     directory: "/" # Location of package manifests
     schedule:
       interval: "daily"
+    cooldown:
+      default-days: 7
