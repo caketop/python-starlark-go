@@ -1,7 +1,7 @@
 name: Update starlark-go
 on:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '59 14 * * 6' 
   workflow_dispatch:
 
 jobs:
