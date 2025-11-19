@@ -1,22 +1,31 @@
-ARG BASE_IMAGE=quay.io/pypa/manylinux_2_24_x86_64
-ARG GO_URL=https://go.dev/dl/go1.20.2.linux-amd64.tar.gz
-ARG CLANG_URL=https://github.com/llvm/llvm-project/releases/download/llvmorg-14.0.0/clang+llvm-14.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz
-ARG SHELLCHECK_URL=https://github.com/koalaman/shellcheck/releases/download/v0.8.0/shellcheck-v0.8.0.linux.x86_64.tar.xz
-ARG MCFLY_URL=https://github.com/cantino/mcfly/releases/download/v0.6.0/mcfly-v0.6.0-x86_64-unknown-linux-musl.tar.gz
+# https://github.com/pypa/manylinux/#docker-images
+ARG BASE_IMAGE=quay.io/pypa/manylinux_2_28_x86_64
+
+# local toolchains
+ARG GO_URL=https://go.dev/dl/go1.25.4.linux-amd64.tar.gz
+ARG CLANG_URL=https://github.com/llvm/llvm-project/releases/download/llvmorg-15.0.0/clang+llvm-15.0.0-x86_64-linux-gnu-rhel-8.4.tar.xz
+ARG SHELLCHECK_URL=https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.xz
+ARG MCFLY_URL=https://github.com/cantino/mcfly/releases/download/v0.9.3/mcfly-v0.9.3-x86_64-unknown-linux-musl.tar.gz
 
 ARG USERNAME=builder
 ARG USER_UID=501
 ARG USER_GID=$USER_UID
 
-
 FROM ${BASE_IMAGE} AS packages
 
-ENV DEBIAN_FRONTEND=noninteractive
+# manylinux_2_28_x86_64 is Alma Linux; no deb infra
+# ENV DEBIAN_FRONTEND=noninteractive
+# RUN apt-get update && apt-get upgrade -y && \
+#  apt-get install -y \
+#  build-essential gdb less libffi-dev valgrind \
+#  curl ca-certificates gnupg2 tar g++ gcc libc6-dev make pkg-config
 
-RUN apt-get update && apt-get upgrade -y && \
-  apt-get install -y \
-  build-essential gdb less libffi-dev valgrind \
-  curl ca-certificates gnupg2 tar g++ gcc libc6-dev make pkg-config
+RUN dnf -y upgrade && \
+    dnf -y install \
+      gcc gcc-c++ make glibc-devel libstdc++-devel \
+      gdb less libffi-devel valgrind \
+      curl ca-certificates gnupg2 tar \
+      pkgconf-pkg-config
 
 RUN curl -sS https://starship.rs/install.sh | sh -s -- -y
 
