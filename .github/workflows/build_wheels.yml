@@ -29,6 +29,7 @@ jobs:
 
       - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
+          name: sdist
           path: dist/*.tar.gz
 
   # Build binary distributions for PyPI
@@ -104,8 +105,14 @@ jobs:
 
       - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
-          name: artifact
+          name: sdist
           path: dist
+
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          pattern: wheel-*
+          path: dist
+          merge-multiple: true
 
       - name: "✏️ Generate release changelog"
         id: changelog
@@ -117,11 +124,14 @@ jobs:
           prWoLabels: true
           token: ${{ secrets.GITHUB_TOKEN }}
           verbose: true
+          # Have to use a file because using action outputs is broken in 2.4
+          # See https://github.com/janheinrichmerker/action-github-changelog-generator/issues/44
+          output: generated_changelog.md
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@5be0e66d93ac7ed76da52eca8bb058f665c3a5fe # v2.4.2
         with:
-          body: ${{ steps.changelog.outputs.changelog }}
+          body_path: generated_changelog.md
           files: dist/**/*
 
   # Test PyPI
@@ -133,8 +143,14 @@ jobs:
     steps:
       - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
-          name: artifact
+          name: sdist
           path: dist
+
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          pattern: wheel-*
+          path: dist
+          merge-multiple: true
 
       - uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
         with:
@@ -153,8 +169,14 @@ jobs:
     steps:
       - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
-          name: artifact
+          name: sdist
           path: dist
+
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          pattern: wheel-*
+          path: dist
+          merge-multiple: true
 
       - uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
         with:
