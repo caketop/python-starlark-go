@@ -1,0 +1,33 @@
+name: Devcontainer
+
+on:
+  pull_request:
+
+permissions: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build the devcontainer
+    steps:
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      with:
+        fetch-depth: 1
+        persist-credentials: false
+
+    - name: Check .devcontainer changes
+      id: changes
+      uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+      with:
+        filters: |
+          devcontainer:
+            - '.devcontainer/**'
+
+    - name: Devcontainer Build
+      if: steps.changes.outputs.devcontainer == 'true'
+      uses: devcontainers/ci@8bf61b26e9c3a98f69cb6ce2f88d24ff59b785c6 # v0.3.1900000417
+      with:
+        # This is just to test the build when the files change.
+        push: never
+        imageName: ghcr.io/${{ github.repository_owner }}/${{ github.repository }}/devcontainer
+        runCmd: echo done
