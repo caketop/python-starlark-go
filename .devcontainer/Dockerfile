@@ -21,11 +21,11 @@ FROM ${BASE_IMAGE} AS packages
 #  curl ca-certificates gnupg2 tar g++ gcc libc6-dev make pkg-config
 
 RUN dnf -y upgrade && \
-    dnf -y install \
-      gcc gcc-c++ make glibc-devel libstdc++-devel \
-      gdb less libffi-devel valgrind \
-      curl ca-certificates gnupg2 tar \
-      pkgconf-pkg-config
+  dnf -y install \
+  gcc gcc-c++ make glibc-devel libstdc++-devel \
+  gdb less libffi-devel valgrind \
+  curl ca-certificates gnupg2 tar \
+  pkgconf-pkg-config
 
 RUN curl -sS https://starship.rs/install.sh | sh -s -- -y
 
@@ -94,11 +94,11 @@ RUN echo "set auto-load safe-path /" > /home/${USERNAME}/.gdbinit
 
 COPY --from=go_tools --chown=${USERNAME} /home/${USERNAME}/go/bin/ /home/${USERNAME}/go/bin
 
-RUN python3.10 -m venv /home/${USERNAME}/venv
+RUN python3.11 -m venv /home/${USERNAME}/venv
 
-ENV PATH=/home/${USERNAME}/venv/bin:/opt/python/cp310-cp310/bin:${PATH}
+ENV PATH=/home/${USERNAME}/venv/bin:/opt/python/cp311-cp311/bin:${PATH}
 
-RUN python3.10 -m pip install black ipython isort memray pytest pytest-memray pytest-valgrind tox
+RUN python3.11 -m pip install black ipython isort memray pytest pytest-memray pytest-valgrind tox
 
 COPY --from=misc --chown=${USERNAME} /tmp/shellcheck/shellcheck /home/${USERNAME}/.local/bin/shellcheck
 COPY --from=misc --chown=${USERNAME} /tmp/mcfly/mcfly /home/${USERNAME}/.local/bin/mcfly
