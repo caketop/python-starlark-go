@@ -3,6 +3,8 @@ name: Valgrind
 on:
   workflow_dispatch:
 
+permissions: {}
+
 jobs:
   build:
 
