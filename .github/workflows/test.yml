@@ -10,10 +10,10 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+        python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
         experimental: [false]
         include:
-          - python-version: '3.13-dev'
+          - python-version: '3.15-dev'
             # sets continue-on-error automatically
             experimental: true
 
@@ -29,7 +29,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
           architecture: x64
 
-      # memray doesn't ship 3.12-dev binaries yet
+      # memray sometimes lags on shipping -dev binaries,
+      # so install these to build from source when that happens.
       # https://github.com/bloomberg/memray#building-from-source
       - name: Install memray build dependencies for Python -dev versions
         if: endsWith(matrix.python-version, '-dev')

@@ -8,11 +8,11 @@
       "settings": {
         "python.defaultInterpreterPath": "/home/builder/venv/bin/python3",
         "go.toolsEnvVars": {
-          "CGO_CFLAGS": "-I/opt/python/cp310-cp310/include/python3.10",
+          "CGO_CFLAGS": "-I/opt/python/cp311-cp311/include/python3.11",
           "CGO_LDFLAGS": "-Wl,--unresolved-symbols=ignore-all"
         },
         "C_Cpp.default.includePath": [
-          "/opt/python/cp310-cp310/include/python3.10"
+          "/opt/python/cp311-cp311/include/python3.11"
         ],
         "C_Cpp.formatting": "clangFormat",
         "C_Cpp.clang_format_style": "file",
