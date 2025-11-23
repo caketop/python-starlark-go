@@ -7,6 +7,8 @@ on:
     types:
       - labeled
 
+permissions: {}
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -18,5 +20,9 @@ jobs:
       # Bump version on merging Pull Requests with specific labels.
       # (bump:major,bump:minor,bump:patch)
       - uses: haya14busa/action-bumpr@faf6f474bcb6174125cfc569f0b2e24cbf03d496 # v1.11.4
+        # TODO: this permission may not be necessary because of the BUMPR_TOKEN secret…
+        permissions:
+          pull_requests: read
+          contents: write
         with:
           github_token: ${{ secrets.BUMPR_TOKEN }}
