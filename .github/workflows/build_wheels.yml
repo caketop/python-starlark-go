@@ -41,7 +41,7 @@ jobs:
       matrix:
         # Windows isn't working right now: https://github.com/caketop/python-starlark-go/issues/4
         os: [ubuntu-latest, macos-latest]
-        cibw_python: ["cp38", "cp39", "cp310", "cp311", "cp312", "cp313"]
+        cibw_python: ["cp310", "cp311", "cp312", "cp313", "cp314", "cp315"]
         cibw_arch: ["i686", "x86_64", "aarch64", "arm64"]
         include:
           - cibw_arch: arm64
@@ -57,9 +57,6 @@ jobs:
             cibw_arch: i686
           - os: macos-latest
             cibw_arch: aarch64
-          - os: macos-latest
-            cibw_python: "cp37"
-            cibw_arch: arm64
 
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
