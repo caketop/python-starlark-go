@@ -36,6 +36,7 @@ jobs:
   build_wheels:
     name: Build on ${{ matrix.os }} for ${{matrix.cibw_python}} ${{matrix.cibw_arch}}
     runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental }}
     strategy:
       fail-fast: false
       matrix:
