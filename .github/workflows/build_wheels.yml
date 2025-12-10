@@ -43,7 +43,10 @@ jobs:
         os: [ubuntu-latest, macos-latest]
         cibw_python: ["cp310", "cp311", "cp312", "cp313", "cp314", "cp315"]
         cibw_arch: ["i686", "x86_64", "aarch64", "arm64"]
+        experimental: [false]
         include:
+          - cibw_python: cp315
+            experimental: true
           - cibw_arch: arm64
             goarch: arm64
           - cibw_arch: aarch64
