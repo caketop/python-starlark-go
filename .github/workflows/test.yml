@@ -3,6 +3,8 @@ name: Test
 on:
   pull_request:
 
+permissions: {}
+
 jobs:
   build:
 
@@ -19,23 +21,24 @@ jobs:
 
     name: Python ${{ matrix.python-version }}
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
-      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
+      - uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
 
       - name: Setup python
-        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
 
-      # memray doesn't ship 3.12-dev binaries yet
+      # memray sometimes lags on shipping -dev binaries,
+      # so install these to build from source when that happens.
       # https://github.com/bloomberg/memray#building-from-source
       - name: Install memray build dependencies for Python -dev versions
         if: endsWith(matrix.python-version, '-dev')
         env:
           DEBIAN_FRONTEND: noninteractive
-        run: sudo apt-get install --yes --no-install-recommends libunwind-dev liblz4-dev
+        run: sudo apt-get install --yes --no-install-recommends libunwind-dev liblz4-dev libdebuginfod-dev
 
       - name: Install dependencies
         run: |
