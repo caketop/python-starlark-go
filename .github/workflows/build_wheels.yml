@@ -125,15 +125,15 @@ jobs:
           # Have to use a file because using action outputs is broken in 2.4
           # See https://github.com/janheinrichmerker/action-github-changelog-generator/issues/44
           output: generated_changelog.md
-          # In case the release already exists because it was manually created,
-          # and the author has written a SMASHINGLY GOOD blurb.
-          append_body: true
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
         with:
           body_path: generated_changelog.md
           files: dist/**/*
+          # In case the release already exists because it was manually created,
+          # and the author has written a SMASHINGLY GOOD blurb.
+          append_body: true
 
   # Test PyPI
   test_pypi_publish:
