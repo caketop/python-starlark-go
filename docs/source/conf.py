@@ -14,7 +14,7 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
-from importlib_metadata import version  # type: ignore
+from importlib.metadata import version  # type: ignore
 
 release = version("starlark_go")
 version = ".".join(release.split(".")[:2])
