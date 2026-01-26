@@ -115,7 +115,7 @@ func Starlark_set_globals(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject
 		}
 		defer C.Py_DecRef(pyvalue)
 
-		value, err := pythonToStarlarkValue(pyvalue, state)
+		value, err := state.pythonToStarlarkValue(pyvalue)
 		if err != nil {
 			return nil
 		}
