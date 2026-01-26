@@ -247,6 +247,9 @@ func (state *StarlarkState) pythonToStarlarkFunc(obj *C.PyObject) (starlark.Valu
 		return starlark.None, err
 	}
 
+	C.Py_IncRef(obj)
+	state.childRefs = append(state.childRefs, obj)
+
 	return starlark.NewBuiltin(funcName, func(
 		_ *starlark.Thread,
 		_ *starlark.Builtin,
@@ -286,6 +289,9 @@ func (state *StarlarkState) pythonToStarlarkMethod(obj *C.PyObject) (starlark.Va
 	if err != nil {
 		return starlark.None, err
 	}
+
+	C.Py_IncRef(obj)
+	state.childRefs = append(state.childRefs, obj)
 
 	return starlark.NewBuiltin(funcName, func(
 		_ *starlark.Thread,
