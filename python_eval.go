@@ -11,15 +11,6 @@ import (
 	"go.starlark.net/starlark"
 )
 
-// Manage the Python global interpreter lock (GIL)
-type PythonEnv interface {
-	// Detach the GIL and save the thread state
-	DetachGIL()
-
-	// Re-attach the GIL with the saved thread state
-	ReattachGIL()
-}
-
 //export Starlark_eval
 func Starlark_eval(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject) *C.PyObject {
 	var (
