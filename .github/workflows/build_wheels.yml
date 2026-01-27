@@ -138,6 +138,7 @@ jobs:
   # Test PyPI
   test_pypi_publish:
     name: Test publishing to PyPI
+    if: github.repository == 'caketop/python-starlark-go'
     needs: [build_wheels, build_sdist]
     runs-on: ubuntu-latest
 
