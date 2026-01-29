@@ -1,3 +1,3 @@
 setuptools-golang==2.9.0
-wheel==0.45.1
+wheel==0.46.3
 pytest==9.0.2
