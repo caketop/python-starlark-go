@@ -6,6 +6,7 @@ package main
 import "C"
 
 import (
+	"time"
 	"unsafe"
 
 	"go.starlark.net/starlark"
@@ -27,10 +28,11 @@ func Starlark_eval(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject) *C.Py
 		filename   *C.char     = nil
 		convert    C.uint      = 1
 		print      *C.PyObject = nil
+		timeout    C.double    = 0
 		goFilename string      = "<expr>"
 	)
 
-	if C.parseEvalArgs(args, kwargs, &expr, &filename, &convert, &print) == 0 {
+	if C.parseEvalArgs(args, kwargs, &expr, &filename, &convert, &print, &timeout) == 0 {
 		return nil
 	}
 
@@ -59,6 +61,14 @@ func Starlark_eval(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject) *C.Py
 	}
 
 	thread := &starlark.Thread{Print: starlarkPrint}
+
+	if timeout > 0 {
+		timer := time.AfterFunc(time.Duration(float64(timeout)*float64(time.Second)), func() {
+			thread.Cancel("timed out")
+		})
+		defer timer.Stop()
+	}
+
 	result, err := starlark.Eval(thread, goFilename, goExpr, state.Globals)
 	state.ReattachGIL()
 
@@ -87,10 +97,11 @@ func Starlark_exec(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject) *C.Py
 		defs       *C.char
 		filename   *C.char     = nil
 		print      *C.PyObject = nil
+		timeout    C.double    = 0
 		goFilename string      = "<expr>"
 	)
 
-	if C.parseExecArgs(args, kwargs, &defs, &filename, &print) == 0 {
+	if C.parseExecArgs(args, kwargs, &defs, &filename, &print, &timeout) == 0 {
 		return nil
 	}
 
@@ -127,6 +138,14 @@ func Starlark_exec(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject) *C.Py
 	}
 
 	thread := &starlark.Thread{Print: starlarkPrint}
+
+	if timeout > 0 {
+		timer := time.AfterFunc(time.Duration(float64(timeout)*float64(time.Second)), func() {
+			thread.Cancel("timed out")
+		})
+		defer timer.Stop()
+	}
+
 	newGlobals, err := program.Init(thread, state.Globals)
 	state.ReattachGIL()
 
