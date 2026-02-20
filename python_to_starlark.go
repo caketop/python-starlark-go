@@ -15,7 +15,7 @@ import (
 	"go.starlark.net/starlark"
 )
 
-func pythonToStarlarkTuple(obj *C.PyObject, env PythonEnv) (starlark.Tuple, error) {
+func (state *StarlarkState) pythonToStarlarkTuple(obj *C.PyObject) (starlark.Tuple, error) {
 	var elems []starlark.Value
 	pyiter := C.PyObject_GetIter(obj)
 	if pyiter == nil {
@@ -27,7 +27,7 @@ func pythonToStarlarkTuple(obj *C.PyObject, env PythonEnv) (starlark.Tuple, erro
 	for pyvalue := C.PyIter_Next(pyiter); pyvalue != nil; pyvalue = C.PyIter_Next(pyiter) {
 		defer C.Py_DecRef(pyvalue)
 
-		value, err := innerPythonToStarlarkValue(pyvalue, env)
+		value, err := state.innerPythonToStarlarkValue(pyvalue)
 		if err != nil {
 			return starlark.Tuple{}, fmt.Errorf("While converting value at index %v in Python tuple: %v", index, err)
 		}
@@ -52,7 +52,7 @@ func pythonToStarlarkBytes(obj *C.PyObject) (starlark.Bytes, error) {
 	return starlark.Bytes(C.GoString(cbytes)), nil
 }
 
-func pythonToStarlarkList(obj *C.PyObject, env PythonEnv) (*starlark.List, error) {
+func (state *StarlarkState) pythonToStarlarkList(obj *C.PyObject) (*starlark.List, error) {
 	len := C.PyObject_Length(obj)
 	if len < 0 {
 		return &starlark.List{}, fmt.Errorf("Couldn't get size of Python list")
@@ -68,7 +68,7 @@ func pythonToStarlarkList(obj *C.PyObject, env PythonEnv) (*starlark.List, error
 	index := 0
 	for pyvalue := C.PyIter_Next(pyiter); pyvalue != nil; pyvalue = C.PyIter_Next(pyiter) {
 		defer C.Py_DecRef(pyvalue)
-		value, err := innerPythonToStarlarkValue(pyvalue, env)
+		value, err := state.innerPythonToStarlarkValue(pyvalue)
 		if err != nil {
 			return &starlark.List{}, fmt.Errorf("While converting value at index %v in Python list: %v", index, err)
 		}
@@ -84,7 +84,7 @@ func pythonToStarlarkList(obj *C.PyObject, env PythonEnv) (*starlark.List, error
 	return starlark.NewList(elems), nil
 }
 
-func pythonToStarlarkDict(obj *C.PyObject, env PythonEnv) (*starlark.Dict, error) {
+func (state *StarlarkState) pythonToStarlarkDict(obj *C.PyObject) (*starlark.Dict, error) {
 	size := C.PyObject_Length(obj)
 	if size < 0 {
 		return &starlark.Dict{}, fmt.Errorf("Couldn't get size of Python dict")
@@ -100,7 +100,7 @@ func pythonToStarlarkDict(obj *C.PyObject, env PythonEnv) (*starlark.Dict, error
 	for pykey := C.PyIter_Next(pyiter); pykey != nil; pykey = C.PyIter_Next(pyiter) {
 		defer C.Py_DecRef(pykey)
 
-		key, err := innerPythonToStarlarkValue(pykey, env)
+		key, err := state.innerPythonToStarlarkValue(pykey)
 		if err != nil {
 			return &starlark.Dict{}, fmt.Errorf("While converting key in Python dict: %v", err)
 		}
@@ -111,7 +111,7 @@ func pythonToStarlarkDict(obj *C.PyObject, env PythonEnv) (*starlark.Dict, error
 		}
 		defer C.Py_DecRef(pyvalue)
 
-		value, err := innerPythonToStarlarkValue(pyvalue, env)
+		value, err := state.innerPythonToStarlarkValue(pyvalue)
 		if err != nil {
 			return &starlark.Dict{}, fmt.Errorf("While converting value of key %v in Python dict: %v", key, err)
 		}
@@ -129,7 +129,7 @@ func pythonToStarlarkDict(obj *C.PyObject, env PythonEnv) (*starlark.Dict, error
 	return dict, nil
 }
 
-func pythonToStarlarkSet(obj *C.PyObject, env PythonEnv) (*starlark.Set, error) {
+func (state *StarlarkState) pythonToStarlarkSet(obj *C.PyObject) (*starlark.Set, error) {
 	size := C.PyObject_Length(obj)
 	if size < 0 {
 		return &starlark.Set{}, fmt.Errorf("Couldn't get size of Python set")
@@ -145,7 +145,7 @@ func pythonToStarlarkSet(obj *C.PyObject, env PythonEnv) (*starlark.Set, error) 
 	for pyvalue := C.PyIter_Next(pyiter); pyvalue != nil; pyvalue = C.PyIter_Next(pyiter) {
 		defer C.Py_DecRef(pyvalue)
 
-		value, err := innerPythonToStarlarkValue(pyvalue, env)
+		value, err := state.innerPythonToStarlarkValue(pyvalue)
 		if err != nil {
 			return &starlark.Set{}, fmt.Errorf("While converting value in Python set: %v", err)
 		}
@@ -241,11 +241,14 @@ func getPyError() error {
 	return fmt.Errorf(errStr.GoString())
 }
 
-func pythonToStarlarkFunc(obj *C.PyObject, env PythonEnv) (starlark.Value, error) {
+func (state *StarlarkState) pythonToStarlarkFunc(obj *C.PyObject) (starlark.Value, error) {
 	funcName, err := getFuncName(obj)
 	if err != nil {
 		return starlark.None, err
 	}
+
+	C.Py_IncRef(obj)
+	state.childRefs = append(state.childRefs, obj)
 
 	return starlark.NewBuiltin(funcName, func(
 		_ *starlark.Thread,
@@ -253,8 +256,8 @@ func pythonToStarlarkFunc(obj *C.PyObject, env PythonEnv) (starlark.Value, error
 		args starlark.Tuple,
 		kwargs []starlark.Tuple,
 	) (starlark.Value, error) {
-		env.ReattachGIL()
-		defer env.DetachGIL()
+		state.ReattachGIL()
+		defer state.DetachGIL()
 
 		cargs, err := starlarkTupleToPython(args)
 		if err != nil {
@@ -274,11 +277,11 @@ func pythonToStarlarkFunc(obj *C.PyObject, env PythonEnv) (starlark.Value, error
 		}
 
 		defer C.Py_DecRef(res)
-		return innerPythonToStarlarkValue(res, env)
+		return state.innerPythonToStarlarkValue(res)
 	}), nil
 }
 
-func pythonToStarlarkMethod(obj *C.PyObject, env PythonEnv) (starlark.Value, error) {
+func (state *StarlarkState) pythonToStarlarkMethod(obj *C.PyObject) (starlark.Value, error) {
 	self := C.PyMethod_Self(obj)
 	f := C.PyMethod_Function(obj)
 
@@ -287,14 +290,17 @@ func pythonToStarlarkMethod(obj *C.PyObject, env PythonEnv) (starlark.Value, err
 		return starlark.None, err
 	}
 
+	C.Py_IncRef(obj)
+	state.childRefs = append(state.childRefs, obj)
+
 	return starlark.NewBuiltin(funcName, func(
 		_ *starlark.Thread,
 		_ *starlark.Builtin,
 		args starlark.Tuple,
 		kwargs []starlark.Tuple,
 	) (starlark.Value, error) {
-		env.ReattachGIL()
-		defer env.DetachGIL()
+		state.ReattachGIL()
+		defer state.DetachGIL()
 
 		// create args list with self at the front
 		cargsList, err := starlarkTupleToPythonList(args)
@@ -324,11 +330,11 @@ func pythonToStarlarkMethod(obj *C.PyObject, env PythonEnv) (starlark.Value, err
 		}
 
 		defer C.Py_DecRef(res)
-		return innerPythonToStarlarkValue(res, env)
+		return state.innerPythonToStarlarkValue(res)
 	}), nil
 }
 
-func innerPythonToStarlarkValue(obj *C.PyObject, env PythonEnv) (starlark.Value, error) {
+func (state *StarlarkState) innerPythonToStarlarkValue(obj *C.PyObject) (starlark.Value, error) {
 	var value starlark.Value = nil
 	var err error = nil
 
@@ -348,21 +354,21 @@ func innerPythonToStarlarkValue(obj *C.PyObject, env PythonEnv) (starlark.Value,
 	case C.cgoPyBytes_Check(obj) == 1:
 		value, err = pythonToStarlarkBytes(obj)
 	case C.cgoPySet_Check(obj) == 1:
-		value, err = pythonToStarlarkSet(obj, env)
+		value, err = state.pythonToStarlarkSet(obj)
 	case C.cgoPyDict_Check(obj) == 1:
-		value, err = pythonToStarlarkDict(obj, env)
+		value, err = state.pythonToStarlarkDict(obj)
 	case C.cgoPyList_Check(obj) == 1:
-		value, err = pythonToStarlarkList(obj, env)
+		value, err = state.pythonToStarlarkList(obj)
 	case C.cgoPyTuple_Check(obj) == 1:
-		value, err = pythonToStarlarkTuple(obj, env)
+		value, err = state.pythonToStarlarkTuple(obj)
 	case C.PySequence_Check(obj) == 1:
-		value, err = pythonToStarlarkList(obj, env)
+		value, err = state.pythonToStarlarkList(obj)
 	case C.PyMapping_Check(obj) == 1:
-		value, err = pythonToStarlarkDict(obj, env)
+		value, err = state.pythonToStarlarkDict(obj)
 	case C.cgoPyFunc_Check(obj) == 1:
-		value, err = pythonToStarlarkFunc(obj, env)
+		value, err = state.pythonToStarlarkFunc(obj)
 	case C.cgoPyMethod_Check(obj) == 1:
-		value, err = pythonToStarlarkMethod(obj, env)
+		value, err = state.pythonToStarlarkMethod(obj)
 	default:
 		err = fmt.Errorf("Don't know how to convert Python %s to Starlark", C.GoString(obj.ob_type.tp_name))
 	}
@@ -376,8 +382,8 @@ func innerPythonToStarlarkValue(obj *C.PyObject, env PythonEnv) (starlark.Value,
 	return value, err
 }
 
-func pythonToStarlarkValue(obj *C.PyObject, env PythonEnv) (starlark.Value, error) {
-	value, err := innerPythonToStarlarkValue(obj, env)
+func (state *StarlarkState) pythonToStarlarkValue(obj *C.PyObject) (starlark.Value, error) {
+	value, err := state.innerPythonToStarlarkValue(obj)
 	if err != nil {
 		handleConversionError(err, C.ConversionToStarlarkFailed)
 		return starlark.None, err
