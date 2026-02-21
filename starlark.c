@@ -20,6 +20,7 @@ PyObject *Starlark_tp_iter(Starlark *self);
 PyObject *StarlarkError;
 PyObject *SyntaxError;
 PyObject *EvalError;
+PyObject *EvalTimeoutError;
 PyObject *ResolveError;
 PyObject *ResolveErrorItem;
 PyObject *ConversionToPythonFailed;
@@ -117,10 +118,11 @@ PyDoc_STRVAR(
     ":raises ConversionToPythonFailed: if the value is of an unsupported type for "
     "conversion.\n"
     ":raises EvalError: if there is a Starlark evaluation error\n"
+    ":raises EvalTimeoutError: if the evaluation exceeds the specified timeout\n"
     ":raises ResolveError: if there is a Starlark resolution error\n"
     ":raises SyntaxError: if there is a Starlark syntax error\n"
     ":param timeout: Maximum number of seconds to allow the evaluation to run. "
-    "If the evaluation exceeds this time, an :py:class:`EvalError` is raised.\n"
+    "If the evaluation exceeds this time, an :py:class:`EvalTimeoutError` is raised.\n"
     ":type timeout: typing.Optional[float]\n"
     ":raises StarlarkError: if there is an unexpected error\n"
     ":rtype: typing.Any\n"
@@ -145,10 +147,11 @@ PyDoc_STRVAR(
     "built-in :py:func:`python:print`.\n"
     ":type print: typing.Callable[[str], typing.Any]\n"
     ":raises EvalError: if there is a Starlark evaluation error\n"
+    ":raises EvalTimeoutError: if the execution exceeds the specified timeout\n"
     ":raises ResolveError: if there is a Starlark resolution error\n"
     ":raises SyntaxError: if there is a Starlark syntax error\n"
     ":param timeout: Maximum number of seconds to allow the execution to run. "
-    "If the execution exceeds this time, an :py:class:`EvalError` is raised.\n"
+    "If the execution exceeds this time, an :py:class:`EvalTimeoutError` is raised.\n"
     ":type timeout: typing.Optional[float]\n"
     ":raises StarlarkError: if there is an unexpected error\n"
 );
@@ -576,6 +579,9 @@ PyMODINIT_FUNC PyInit_starlark_go(void)
 
   EvalError = get_exception_class(errors, "EvalError");
   if (EvalError == NULL) return NULL;
+
+  EvalTimeoutError = get_exception_class(errors, "EvalTimeoutError");
+  if (EvalTimeoutError == NULL) return NULL;
 
   ResolveError = get_exception_class(errors, "ResolveError");
   if (ResolveError == NULL) return NULL;

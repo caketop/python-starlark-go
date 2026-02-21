@@ -6,6 +6,7 @@ package main
 import "C"
 
 import (
+	"sync/atomic"
 	"time"
 	"unsafe"
 
@@ -62,8 +63,10 @@ func Starlark_eval(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject) *C.Py
 
 	thread := &starlark.Thread{Print: starlarkPrint}
 
+	var timedOut atomic.Bool
 	if timeout > 0 {
 		timer := time.AfterFunc(time.Duration(float64(timeout)*float64(time.Second)), func() {
+			timedOut.Store(true)
 			thread.Cancel("timed out")
 		})
 		defer timer.Stop()
@@ -73,7 +76,11 @@ func Starlark_eval(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject) *C.Py
 	state.ReattachGIL()
 
 	if err != nil {
-		raisePythonException(err)
+		if timedOut.Load() {
+			raiseTimeoutPythonException(err)
+		} else {
+			raisePythonException(err)
+		}
 		return nil
 	}
 
@@ -139,8 +146,10 @@ func Starlark_exec(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject) *C.Py
 
 	thread := &starlark.Thread{Print: starlarkPrint}
 
+	var timedOut atomic.Bool
 	if timeout > 0 {
 		timer := time.AfterFunc(time.Duration(float64(timeout)*float64(time.Second)), func() {
+			timedOut.Store(true)
 			thread.Cancel("timed out")
 		})
 		defer timer.Stop()
@@ -150,7 +159,11 @@ func Starlark_exec(self *C.Starlark, args *C.PyObject, kwargs *C.PyObject) *C.Py
 	state.ReattachGIL()
 
 	if err != nil {
-		raisePythonException(err)
+		if timedOut.Load() {
+			raiseTimeoutPythonException(err)
+		} else {
+			raisePythonException(err)
+		}
 		return nil
 	}
 

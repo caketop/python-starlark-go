@@ -14,3 +14,9 @@ def test_import_evalerror():
     from starlark_go import EvalError, StarlarkError
 
     assert issubclass(EvalError, StarlarkError)
+
+
+def test_import_evaltimeouterror():
+    from starlark_go import EvalError, EvalTimeoutError
+
+    assert issubclass(EvalTimeoutError, EvalError)
