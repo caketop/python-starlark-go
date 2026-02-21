@@ -20,6 +20,7 @@ PyObject *Starlark_tp_iter(Starlark *self);
 PyObject *StarlarkError;
 PyObject *SyntaxError;
 PyObject *EvalError;
+PyObject *EvalTimeoutError;
 PyObject *ResolveError;
 PyObject *ResolveErrorItem;
 PyObject *ConversionToPythonFailed;
@@ -93,11 +94,11 @@ PyDoc_STRVAR(
     ":type print: typing.Callable[[str], typing.Any]\n"
 );
 
-static char *eval_keywords[] = {"expr", "filename", "convert", "print", NULL};
+static char *eval_keywords[] = {"expr", "filename", "convert", "print", "timeout", NULL};
 
 PyDoc_STRVAR(
     Starlark_eval_doc,
-    "eval(self, expr, *, filename=None, convert=True, print=None)\n--\n\n"
+    "eval(self, expr, *, filename=None, convert=True, print=None, timeout=None)\n--\n\n"
     "Evaluate a Starlark expression. The expression passed to ``eval`` must evaluate "
     "to a value. Function definitions, variable assignments, and control structures "
     "are not allowed by ``eval``. To use those, please use :meth:`exec`.\n\n"
@@ -117,17 +118,21 @@ PyDoc_STRVAR(
     ":raises ConversionToPythonFailed: if the value is of an unsupported type for "
     "conversion.\n"
     ":raises EvalError: if there is a Starlark evaluation error\n"
+    ":raises EvalTimeoutError: if the evaluation exceeds the specified timeout\n"
     ":raises ResolveError: if there is a Starlark resolution error\n"
     ":raises SyntaxError: if there is a Starlark syntax error\n"
+    ":param timeout: Maximum number of seconds to allow the evaluation to run. "
+    "If the evaluation exceeds this time, an :py:class:`EvalTimeoutError` is raised.\n"
+    ":type timeout: typing.Optional[float]\n"
     ":raises StarlarkError: if there is an unexpected error\n"
     ":rtype: typing.Any\n"
 );
 
-static char *exec_keywords[] = {"defs", "filename", "print", NULL};
+static char *exec_keywords[] = {"defs", "filename", "print", "timeout", NULL};
 
 PyDoc_STRVAR(
     Starlark_exec_doc,
-    "exec(self, defs, *, filename=None, print=None)\n--\n\n"
+    "exec(self, defs, *, filename=None, print=None, timeout=None)\n--\n\n"
     "Execute Starlark code. All legal Starlark constructs may be used with "
     "``exec``.\n\n"
     "``exec`` does not return a value. To evaluate the value of a Starlark expression, "
@@ -142,8 +147,12 @@ PyDoc_STRVAR(
     "built-in :py:func:`python:print`.\n"
     ":type print: typing.Callable[[str], typing.Any]\n"
     ":raises EvalError: if there is a Starlark evaluation error\n"
+    ":raises EvalTimeoutError: if the execution exceeds the specified timeout\n"
     ":raises ResolveError: if there is a Starlark resolution error\n"
     ":raises SyntaxError: if there is a Starlark syntax error\n"
+    ":param timeout: Maximum number of seconds to allow the execution to run. "
+    "If the execution exceeds this time, an :py:class:`EvalTimeoutError` is raised.\n"
+    ":type timeout: typing.Optional[float]\n"
     ":raises StarlarkError: if there is an unexpected error\n"
 );
 
@@ -365,24 +374,26 @@ int parseEvalArgs(
     char **expr,
     char **filename,
     unsigned int *convert,
-    PyObject **print
+    PyObject **print,
+    double *timeout
 )
 {
   /* Necessary because Cgo can't do varargs */
   /* One required string, folloed by an optional string and an optional bool */
   return PyArg_ParseTupleAndKeywords(
-      args, kwargs, "s|$spO:eval", eval_keywords, expr, filename, convert, print
+      args, kwargs, "s|$spOd:eval", eval_keywords, expr, filename, convert, print, timeout
   );
 }
 
 int parseExecArgs(
-    PyObject *args, PyObject *kwargs, char **defs, char **filename, PyObject **print
+    PyObject *args, PyObject *kwargs, char **defs, char **filename, PyObject **print,
+    double *timeout
 )
 {
   /* Necessary because Cgo can't do varargs */
   /* One required string, folloed by an optional string */
   return PyArg_ParseTupleAndKeywords(
-      args, kwargs, "s|$sO:exec", exec_keywords, defs, filename, print
+      args, kwargs, "s|$sOd:exec", exec_keywords, defs, filename, print, timeout
   );
 }
 
@@ -568,6 +579,9 @@ PyMODINIT_FUNC PyInit_starlark_go(void)
 
   EvalError = get_exception_class(errors, "EvalError");
   if (EvalError == NULL) return NULL;
+
+  EvalTimeoutError = get_exception_class(errors, "EvalTimeoutError");
+  if (EvalTimeoutError == NULL) return NULL;
 
   ResolveError = get_exception_class(errors, "ResolveError");
   if (ResolveError == NULL) return NULL;

@@ -21,6 +21,7 @@ class Starlark:
         filename: Optional[str] = ...,
         convert: Optional[bool] = ...,
         print: Callable[[str], Any] = ...,
+        timeout: Optional[float] = ...,
     ) -> Any: ...
     def exec(
         self,
@@ -28,6 +29,7 @@ class Starlark:
         *,
         filename: Optional[str] = ...,
         print: Callable[[str], Any] = ...,
+        timeout: Optional[float] = ...,
     ) -> None: ...
     def globals(self) -> List[str]: ...
     def get(self, name: str, default_value: Optional[Any] = ...) -> None: ...
