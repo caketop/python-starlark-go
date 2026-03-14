@@ -1,6 +1,6 @@
 from typing import Any, Optional, Tuple
 
-__all__ = ["StarlarkError", "SyntaxError", "EvalError"]
+__all__ = ["StarlarkError", "SyntaxError", "EvalError", "EvalTimeoutError"]
 
 
 class StarlarkError(Exception):
@@ -133,6 +133,15 @@ class EvalError(StarlarkError):
             context += " in " + self.function_name
 
         self.error = f"{context}:{self.line}:{self.column}: {self.error}"
+
+
+class EvalTimeoutError(EvalError):
+    """
+    A Starlark evaluation timeout error.
+
+    This exception is raised when an evaluation or execution exceeds the
+    specified timeout duration.
+    """
 
 
 class ResolveErrorItem:

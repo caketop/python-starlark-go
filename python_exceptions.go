@@ -6,6 +6,7 @@ package main
 extern PyObject *StarlarkError;
 extern PyObject *SyntaxError;
 extern PyObject *EvalError;
+extern PyObject *EvalTimeoutError;
 extern PyObject *ResolveError;
 */
 import "C"
@@ -54,6 +55,14 @@ func handleConversionError(err error, pytype *C.PyObject) {
 }
 
 func raisePythonException(err error) {
+	doRaisePythonException(err, false)
+}
+
+func raiseTimeoutPythonException(err error) {
+	doRaisePythonException(err, true)
+}
+
+func doRaisePythonException(err error, isTimeout bool) {
 	var (
 		exc_args   *C.PyObject
 		exc_type   *C.PyObject
@@ -113,7 +122,11 @@ func raisePythonException(err error) {
 		}
 
 		exc_args = C.makeEvalErrorArgs(error_msg, error_type, filename, line, column, function_name, backtrace)
-		exc_type = C.EvalError
+		if isTimeout {
+			exc_type = C.EvalTimeoutError
+		} else {
+			exc_type = C.EvalError
+		}
 	case errors.As(err, &resolveErr):
 		items := C.PyTuple_New(C.Py_ssize_t(len(resolveErr)))
 		defer C.Py_DecRef(items)
