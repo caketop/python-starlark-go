@@ -25,6 +25,16 @@ type StarlarkState struct {
 	Mutex       sync.RWMutex
 	Print       *C.PyObject
 	threadState *C.PyThreadState
+	// Most Python values are copied into a new starlark.Value, including
+	// lists, dicts, sets, etc. But some values, namely functions, keep a
+	// reference to the original function, so we need to INCREF the function
+	// and DECREF when Starlark is deallocated.
+	//
+	// Currently, we only DECREF everything on deallocation, so there's a
+	// memory leak if someone keeps replacing the same global with a different
+	// function, but that should be rare and would make the implementation more
+	// difficult.
+	childRefs   []*C.PyObject
 }
 
 //export ConfigureStarlark
@@ -136,6 +146,10 @@ func Starlark_dealloc(self *C.Starlark) {
 
 	state.Mutex.Lock()
 	defer state.Mutex.Unlock()
+
+	for _, obj := range state.childRefs {
+		C.Py_DecRef(obj)
+	}
 
 	if state.Print != nil {
 		C.Py_DecRef(state.Print)
