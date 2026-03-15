@@ -50,6 +50,8 @@ jobs:
             goarch: arm64
           - cibw_arch: x86_64
             goarch: amd64
+          - os: windows-latest
+            cibw_arch: AMD64
         exclude:
           - os: ubuntu-latest
             cibw_arch: arm64
