@@ -27,11 +27,13 @@ int parseEvalArgs(
     char **expr,
     char **filename,
     unsigned int *convert,
-    PyObject **print
+    PyObject **print,
+    double *timeout
 );
 
 int parseExecArgs(
-    PyObject *args, PyObject *kwargs, char **defs, char **filename, PyObject **print
+    PyObject *args, PyObject *kwargs, char **defs, char **filename, PyObject **print,
+    double *timeout
 );
 
 int parseGetGlobalArgs(
