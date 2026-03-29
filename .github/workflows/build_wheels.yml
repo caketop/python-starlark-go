@@ -127,12 +127,13 @@ jobs:
           output: generated_changelog.md
 
       - name: Create GitHub release
-        # TODO: handle situation where the GH Release already exists so we don't overwrite good release notes 
-        run: |
-          TAG="${GITHUB_REF//refs\/tags\/}"
-          gh release create ${TAG} \
-            --notes-file generated_changelog.md
-            dist/**/*
+        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2.6.1
+        with:
+          body_path: generated_changelog.md
+          files: dist/**/*
+          # In case the release already exists because it was manually created,
+          # and the author has written a SMASHINGLY GOOD blurb.
+          append_body: true
 
   # Test PyPI
   test_pypi_publish:
