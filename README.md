@@ -49,3 +49,10 @@ s.set(x=5)
 s.eval("x") # 5
 s.eval("fibonacci(x)")  # [0, 1, 1, 2, 3]
 ```
+
+## Caveats
+
+**Avoid replacing the same Starlark global variable with a different function.**
+This will leak a small amount of memory.
+Continued redefinition of the variable will cause more memory leaks.
+PRs welcome to fix this.

@@ -1,3 +1,4 @@
+import functools
 import sys
 
 import pytest
@@ -276,3 +277,30 @@ def test_method_references():
     assert test.result == {"a": 1}
     s.exec("func_arg_ref([1, 2, 3])")
     assert test.result == {"a": 1, "b": [1, 2, 3]}
+
+
+def test_closures():
+    """https://github.com/caketop/python-starlark-go/issues/297"""
+    def mk_foo():
+        def foo(*args):
+            return args
+        return foo
+
+    class Test:
+        def foo(self, *args):
+            return args
+
+    s = Starlark()
+    s.set(
+        foo=mk_foo(),
+        foo_list=[mk_foo() for _ in range(5)],
+        foo_dict={i: mk_foo() for i in range(5)},
+        test=Test().foo,
+    )
+
+    assert s.eval("foo(1, 2, 3)") == (1, 2, 3)
+    for i in range(5):
+        assert s.eval(f"foo_list[{i}](1, 2, 3)") == (1, 2, 3)
+    for i in range(5):
+        assert s.eval(f"foo_dict[{i}](1, 2, 3)") == (1, 2, 3)
+    assert s.eval("test(1, 2, 3)") == (1, 2, 3)
