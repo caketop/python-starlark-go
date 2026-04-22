@@ -3,7 +3,7 @@ requires = [
   "setuptools >= 82.0.1",
   "wheel",
   "setuptools_scm[toml]>=10.0.5",
-  "setuptools-golang>=2.7",
+  "setuptools-golang>=2.9.0",
 ]
 build-backend = "setuptools.build_meta"
 
