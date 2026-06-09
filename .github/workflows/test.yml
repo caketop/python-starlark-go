@@ -38,7 +38,12 @@ jobs:
         if: endsWith(matrix.python-version, '-dev')
         env:
           DEBIAN_FRONTEND: noninteractive
-        run: sudo apt-get install --yes --no-install-recommends libunwind-dev liblz4-dev libdebuginfod-dev
+        run: |
+            sudo apt-get update --yes && \
+            sudo apt-get install --yes --no-install-recommends \
+              libunwind-dev \
+              liblz4-dev \
+              libdebuginfod-dev
 
       - name: Install dependencies
         run: |
