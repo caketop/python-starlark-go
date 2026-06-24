@@ -19,13 +19,14 @@ def fibonacci(n):
 
 def test_recursion():
     s = Starlark()
-    s.exec(RFIB)
 
     configure_starlark(allow_recursion=False)
+    s.exec(RFIB)
     with pytest.raises(EvalError):
         s.eval("fibonacci(5)")
 
     configure_starlark(allow_recursion=True)
+    s.exec(RFIB)
     assert s.eval("fibonacci(5)") == [0, 1, 1, 2, 3]
     assert s.eval("fibonacci(10)") == [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
 
