@@ -2,7 +2,7 @@
 ARG BASE_IMAGE=quay.io/pypa/manylinux_2_28_x86_64
 
 # local toolchains
-ARG GO_URL=https://go.dev/dl/go1.25.4.linux-amd64.tar.gz
+ARG GO_URL=https://go.dev/dl/go1.27.3.linux-amd64.tar.gz
 ARG CLANG_URL=https://github.com/llvm/llvm-project/releases/download/llvmorg-15.0.0/clang+llvm-15.0.0-x86_64-linux-gnu-rhel-8.4.tar.xz
 ARG SHELLCHECK_URL=https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.xz
 ARG MCFLY_URL=https://github.com/cantino/mcfly/releases/download/v0.9.3/mcfly-v0.9.3-x86_64-unknown-linux-musl.tar.gz
